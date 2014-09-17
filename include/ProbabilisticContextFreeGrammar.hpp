@@ -4,8 +4,8 @@
 // TH, 16.6.2014
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef __CONTEXTFREEGRAMMAR_HPP__
-#define __CONTEXTFREEGRAMMAR_HPP__
+#ifndef __PROBABILISTICCONTEXTFREEGRAMMAR_HPP__
+#define __PROBABILISTICCONTEXTFREEGRAMMAR_HPP__
 
 #include <map>
 #include <vector>
@@ -15,21 +15,21 @@
 
 #include <boost/unordered_set.hpp>
 
-#include "CFGRule.hpp"
-#include "AndOrGraph.hpp"
+#include "PCFGRule.hpp"
+#include "Signature.hpp"
 
-/// ContextFreeGrammar implementiert eine ungewichtete kontextfreie Grammatik
-/// Die Klasse kann allein operieren oder zusammen mit einem Lexikon. Im ersten Fall
-/// ist das Lexikon durch zusätzliche Regeln POS --> WORD gegeben 
-class ContextFreeGrammar
+#include "easylogging++.h"
+
+class ProbabilisticContextFreeGrammar
 {
 public: // Typdefinitionen
-  typedef CFGRule::Symbol               Symbol;
-  typedef boost::unordered_set<Symbol>  SymbolSet;
+  typedef PCFGRule::ID                        Symbol;
+  typedef boost::unordered_set<Symbol>        SymbolSet;
+  typedef Signature<PCFGRule::ExternalSymbol> ExtSignature;
 
 private: // Typdefinitionen
-  typedef SymbolSet::const_iterator     SymbolSetIter;
-  typedef std::vector<CFGRule>          RuleVector;
+  typedef SymbolSet::const_iterator       SymbolSetIter;
+  typedef std::vector<PCFGRule>           RuleVector;
 
 public: // Typdefinitionen
   /// Externer Iterator, sowohl für alle Regeln als auch Teilbereiche
@@ -45,50 +45,35 @@ private: // Typdefinitionen
 
 public: // Funktionen  
   /// Konstruktor aus input stream (Datei, cin, etc.)
-  ContextFreeGrammar(std::istream& grm_in, bool only_grammar=false)
-  : only_grammar_rules(only_grammar)
-  {
+  ProbabilisticContextFreeGrammar(std::istream& grm_in) {
     read_in(grm_in);
   }  
 
   /// Gibt das festgelegte Startsymbol zurück
-  const Symbol& get_start_symbol() const
-  {
+  const Symbol& get_start_symbol() const {
     return start_symbol;
   }
 
   /// Setzt das Startsymbol der Grammatik
-  void set_start_symbol(const Symbol& start)
-  {
+  void set_start_symbol(const Symbol& start) {
     start_symbol = start;
     nonterminal_symbols.insert(start);
   }
 
   /// Gibt true zurück, wenn sym die linke Seite einer Regel bildet
-  bool is_nonterminal(const Symbol& sym) const
-  {
+  bool is_nonterminal(const Symbol& sym) const {
     return nonterminal_symbols.find(sym) != nonterminal_symbols.end();
   }
 
   /// Gibt true zurück, wenn sym die linke Seite einer Regel bildet
-  bool is_preterminal(const Symbol& sym) const
-  {
-    if (only_grammar_rules)
-      return nonterminal_symbols.find(sym) == nonterminal_symbols.end();
-    else return false; // TODO
-  }
-
-  /// Gibt true zurück, wenn sym die linke Seite einer Regel bildet
-  bool is_terminal(const Symbol& sym) const
-  {
+  bool is_terminal(const Symbol& sym) const {
     return nonterminal_symbols.find(sym) == nonterminal_symbols.end();
   }
 
   /// Gibt für die linke Seite 'lhs' ein Paar von Regelvektoriteratoren zurück,
   /// die ein halboffenes Intervall begrenzen, das die Regeln enthält, die
   /// 'lhs' expandieren
-  LHSRange rules_for(const Symbol& lhs) const
-  {
+  LHSRange rules_for(const Symbol& lhs) const {
     // Anm. LHSRange ist ein ziemlich einfaches Objekt, so dass man es auch
     // per Wert (also nicht per Referenz zurückgeben kann)
     RuleIndex::const_iterator f_lhs = rule_index.find(lhs);
@@ -96,32 +81,27 @@ public: // Funktionen
   }
 
   /// Gibt einen Iterator auf den Beginn der Regelmenge zurück
-  const_iterator begin() const
-  {
+  const_iterator begin() const {
     return productions.begin();
   }
     
   /// Gibt einen Iterator auf das Element nach dem Ende der Regelmenge zurück
-  const_iterator end() const
-  {
+  const_iterator end() const {
     return productions.end();
   }
 
   /// Gibt die Anzahl der Regeln zurück
-  unsigned no_of_rules() const
-  {
+  unsigned no_of_rules() const {
     return productions.size();
   }
 
   /// Gibt die Anzahl der Nichtterminale zurück
-  unsigned no_of_nonterminals() const
-  {
+  unsigned no_of_nonterminals() const {
     return nonterminal_symbols.size();
   }
 
   /// Nicht sehr effizient, da das jedesmal aufs Neue berechnet wird.
-  SymbolSet alphabet() const
-  {
+  SymbolSet alphabet() const {
     SymbolSet sigma;
     for (SymbolSetIter s = vocabulary.begin(); s != vocabulary.end(); ++s) {
       if (!is_nonterminal(*s)) sigma.insert(*s);
@@ -129,18 +109,12 @@ public: // Funktionen
     return sigma;
   }
 
-  /// Bestimmt, ob die Grammatik in (erweiterter) CNF ist
-  bool is_in_cnf() const
-  {
+  /// Bestimmt, ob die Grammatik in CNF ist
+  bool is_in_cnf() const {
     // Alle Regeln durchgehen
     for (const_iterator r = begin(); r != end(); ++r) {
-      const CFGRule& rule = *r;
-      if (rule.arity() == 0) {
-        // Nur das Startsymbol darf tilgen
-        if (rule.get_lhs() != get_start_symbol())
-          return false;
-      }
-      else if (rule.arity() == 1) {
+      const PCFGRule& rule = *r;
+      if (rule.arity() == 1) {
         // Unäre Regel, dann muss das Symbol ein Terminal sein
         if (is_nonterminal(rule[0]))
           return false; // Kettenregel gefunden
@@ -155,55 +129,9 @@ public: // Funktionen
     return true;
   }
 
-  /// Bestimmt, ob die Grammatik in GNF ist
-  bool is_in_gnf() const
-  {
-    // Alle Regeln durchgehen
-    for (const_iterator r = begin(); r != end(); ++r) {
-      const CFGRule& rule = *r;
-      if (rule.arity() == 0)
-        return false; // Keine Tilgungsregeln erlaubt
-      else { // |rhs| > 0
-        if (is_nonterminal(rule[0]))
-          return false; // GNF-Regeln müssen mit einem Terminal beginnen
-        // Restliche Symbole durchgehen, alle müssen Nichtterminale sein
-        for (unsigned i = 1; i < rule.arity(); ++i) {
-          if (!is_nonterminal(rule[i])) return false;
-        }
-      }
-    } // for
-    return true;
-  }
-
-  /// Gibt true zurück, wenn die Regel Kettenregeln A --> B enthält
-  bool has_chain_rules() const
-  {
-    for (const_iterator r = begin(); r != end(); ++r) {
-      if (r->arity() == 1 && is_nonterminal((*r)[0])) return true;
-    }
-    return false;
-  }
-
-  /// Gibt true zurück, wenn die Grammatik Tilgungsregeln A --> eps enthält
-  bool has_epsilon_rules() const
-  {
-    for (const_iterator r = begin(); r != end(); ++r) {
-      if (r->arity() == 0) return true;
-    }
-    return false;    
-  }
-
-  /// Gibt true zurück, wenn die Grammatik direkt oder indirekt linksrekursiv ist
-  bool is_left_recursive() const
-  {
-    // TODO
-    return false;
-  }
-
   /// Konzeptuell externer Ausgabeoperator, steht hier, damit er zum Freund
   /// von ContextFreeGrammar gemacht werden kann.
-  friend std::ostream& operator<<(std::ostream& o, const ContextFreeGrammar& g)
-  {
+  friend std::ostream& operator<<(std::ostream& o, const ProbabilisticContextFreeGrammar& g) {
     // Man beachte zweierlei:
     // 1. Das "g.": wir sind konzeptuell nicht in der Klasse
     // 2. Das "print()": wegen friend haben wir Zugriff auf die private Funktion
@@ -227,7 +155,7 @@ private:  // Funktionen
     while (grm_in.good()) {
       std::getline(grm_in,line);
       if (!line.empty() && line[0] != '#') {
-        CFGRule r(line);
+        PCFGRule r(line, signature);
         if (r) {
           add_rule(r);
           if (first_rule) {
@@ -237,7 +165,7 @@ private:  // Funktionen
           }
         }
         else {
-          std::cerr << "CFG: Warning (line " << line_no << "): rule ignored\n";
+          LOG(WARNING) << "PCFG: Rule in line " << line_no << " is ignored.";
         }
       }
       ++line_no;
@@ -251,7 +179,7 @@ private:  // Funktionen
   }
 
   /// Füge eine Regel r zur Regelmenge hinzu
-  void add_rule(const CFGRule& r)
+  void add_rule(const PCFGRule& r)
   {
     // An den Regelvektor anfügen
     productions.push_back(r);
@@ -290,27 +218,13 @@ private:  // Funktionen
   /// Gib die Grammatik auf einem Stream o aus
   void print(std::ostream& o) const
   {
-    o << "(\n{";
-    // Terminale ausgeben (das sind alle Vokabularsymbole abzgl. der Nichtterminale)
-    for (SymbolSetIter s = vocabulary.begin(); s != vocabulary.end(); ++s) {
-      // Test ob *s ein Nichtterminal ist
-      if (!is_nonterminal(*s)) {
-        // Ausgabe nur, wenn es keines ist
-        o << *s << " ";
-      }
-    }
-    o << "},\n";
-    // Nichtterminale ausgeben
-    print_symbol_set(o,nonterminal_symbols);
-    o << ",\n";
-    // Startsymbol
-    o << start_symbol << ",\n{";
-    // Regeln
+    // startsymbol
+    o << signature.resolve_id(start_symbol) << "\n";
     
+    // rules
     for (const_iterator r = begin(); r != end(); ++r) {
       o << *r << "\n";
     }
-    o << "})";
   }
 
   void print_symbol_set(std::ostream& o, const SymbolSet& syms) const
@@ -324,27 +238,14 @@ private:  // Funktionen
     o << "}";
   }
 
-  void compute_nullable_nonterminals()
-  {
-    typedef AndOrGraph<Symbol>            CFGAndOrGraph;
-    typedef CFGAndOrGraph::AndNodes       AndNodes;
-    typedef CFGAndOrGraph::OrNodes        OrNodes;
-    
-    CFGAndOrGraph grm_and_or_graph;
-    for (const_iterator r = begin(); r != end(); ++r) {
-      grm_and_or_graph.add_arc(r->get_lhs(),AndNodes(r->get_rhs().begin(),r->get_rhs().end()));
-    }
-
-  }
 
 private: // Instanzvariablen
-  Symbol      start_symbol;             ///< Startsymbol
-  SymbolSet   nonterminal_symbols;      ///< Nichtterminale
-  SymbolSet   vocabulary;               ///< Terminale U Nichtterminale
-  RuleVector  productions;              ///< Produktionsregeln
-  RuleIndex   rule_index;               ///< Indexstruktur zum Auffinden von Regeln
-  SymbolSet   nullable_nonterminals;
-  bool        only_grammar_rules;       ///< If true then the grammar contains no lexicon rules
+  Symbol        start_symbol;             ///< Startsymbol
+  SymbolSet     nonterminal_symbols;      ///< Nichtterminale
+  SymbolSet     vocabulary;               ///< Terminale U Nichtterminale
+  RuleVector    productions;              ///< Produktionsregeln
+  RuleIndex     rule_index;               ///< Indexstruktur zum Auffinden von Regeln
+  ExtSignature  signature;                ///< The signature to translate the symbol IDs of the rules to strings
 }; // ContextFreeGrammar
 
 #endif

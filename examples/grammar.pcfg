@@ -1,0 +1,7 @@
+S --> NP VP [1.0]
+NP --> Hans [0.5]
+NP --> Maria [0.3]
+NP --> Hase [0.2]
+VP --> V NP [1.0]
+V  --> mag [0.7]
+V  --> streichelt [0.3]

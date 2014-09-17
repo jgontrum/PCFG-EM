@@ -1,8 +1,8 @@
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 // PCFGRule.hpp
-// Repräsentationsklasse für ungewichtete kontextfreie Regeln
-// TH, 16.6.2014
-////////////////////////////////////////////////////////////////////////////////
+// Represents probabilistic rules for a context-free grammar
+// Johannes Gontrum, 16.9.14
+//////////////////////////////////////////////////////////////////////////////'
 
 #ifndef __PCFGRule_HPP__
 #define __PCFGRule_HPP__
@@ -10,165 +10,185 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <cassert>
+#include <cstddef> // for size_t
 #include <boost/tokenizer.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/lexical_cast.hpp> // to cast a string to double
+#include "easylogging++.h"
 
-/// PCFGRule represents a rule for a context-free grammar + a probability for it.
 class PCFGRule
 {
-public: // Typdefinitionen
-    // Dies ist der einzige Ort, wo Symbol als std::string definiert wird.
-    // Andere Klassen wie ContextFreeGrammar rekurrieren hierauf
-    // Symbol würde sich auch sehr gut als Template-Parameter eignen
-    typedef std::string         Symbol;
-    typedef std::vector<Symbol> SymbolVector;
-    typedef double              Probability;
-    
-    
+public:	// Typedefs
+	typedef 	int							ID;
+	typedef 	std::vector<ID> 		    IDVector;
+	typedef 	std::string					ExternalSymbol;
+	typedef 	double 						Probability;
+	typedef 	Signature<ExternalSymbol>	ExtSignature;
+
 public:
-    /// Defaultkonstruktor
-    PCFGRule() : valid(false) {}
-    
-    /// Konstruktor aus String-Repräsentation
-    PCFGRule(const std::string& s)
+	/// The default constructor creates an unvalid rule
+	PCFGRule() : valid(false) 
     {
+        this->signature = 0; // setting a null pointer for the signature
+    }
+	
+	/// To create a valid rule, specify a string of the rule
+	/// e.g. "S -> NP VP [1.0]" and a reference to a signature
+	/// that translates the strings to numeric values.
+    PCFGRule(const std::string& s, ExtSignature& signature) 
+    {
+    	this->signature = &signature;
         valid = parse_rule(s);
-    }
-    
-    /// Konstruktor, dem man beide Regelseiten geben kann
-    PCFGRule(const Symbol& left, const SymbolVector& right)
-    : lhs(left), rhs(right), valid(!left.empty())
-    {}
-    
-    /// Gleichheit von zwei Regeln
-    bool operator==(const PCFGRule& r) const
+        if (valid) {
+            LOG(INFO) << "PCFGRule: Rule for '" << *this << "' successfully created.";
+        } else {
+            LOG(WARNING) << "PCFGRule: Rule for '" << *this << "' could not be created.";
+        }
+     }
+
+	//////////////////////////////////////////////////////////////////////////
+    // Operators
+	//////////////////////////////////////////////////////////////////////////
+    bool operator==(const PCFGRule& r) const  
     {
-        return lhs == r.lhs && rhs == r.rhs;
+        return lhs == r.lhs && rhs == r.rhs && prob == r.prob;
     }
-    
-    /// Konversionsoperator: so kann ein Regelobjekt in einem if erscheinen
-    /// PCFGRule r("NP --> NP PP"); if (r) { ... }
+
+	bool operator<(const PCFGRule& r) const 
+    {
+		if (prob < r.prob) return true;
+		if (lhs < r.lhs) return true;
+        if (lhs == r.lhs) return rhs < r.rhs;
+        return false;
+	}
+
+	/// a read-only index-operator to access the symbols on the rhs
+	const ID operator[](unsigned pos) const
+	{
+	    return (pos < rhs.size()) ? rhs[pos] : -1;
+	}
+
+	/// output-operator, prints the symbols as strings.
+	friend std::ostream& operator<<(std::ostream& o, const PCFGRule& r) 
+    {
+        assert((r.signature)->containsID(r.lhs));
+	    o << (r.signature)->resolve_id(r.lhs) << " -->";
+	    for (unsigned i = 0; i < r.rhs.size(); ++i) {
+            assert((r.signature)->containsID(r.rhs[i]));
+	        o << " " << (r.signature)->resolve_id(r.rhs[i]);
+	    }
+        o << " [" << r.prob << "]";
+	    return o;
+	}
+
+    // conversion operator, to allow statemens like 'if (RULE) {...}'
     operator bool() const
     {
         return valid;
     }
-    
-    /// r1 < r2
-    bool operator<(const PCFGRule& r) const
+
+	//////////////////////////////////////////////////////////////////////////
+    // Getter & Setter
+	//////////////////////////////////////////////////////////////////////////
+	const ID& get_lhs() const { return lhs; }
+
+	const IDVector& get_rhs() const { return rhs; }
+
+	const Probability& get_prob() const { return prob; }
+
+	void set_probability(Probability new_prob) 
     {
-        // Maxime: reduziere < für komplexe Objekte auf < (und ==) für die eingebetteten
-        // Objekte
-        // Lexikographischer Vergleich: vergleiche erst nach linker Regelseite,
-        // dann nach rechter Regelseite.
-        // std::string::compare() wäre hier noch etwas effizienter, allerdings
-        // haben Zahlen als Symbole keine compare()-Funktion, dafür aber < und ==
-        if (lhs < r.lhs) return true;
-        if (lhs == r.lhs) return rhs < r.rhs;
-        return false;
-        //* Alternative (hat den Vorteil, weniger Annahmen (Verzicht auf ==) zu machen):
-        //* if (lhs < r.lhs) return true;
-        //* if (r.lhs < lhs) return false;
-        //* return rhs < r.rhs;
-    }
-    
-    /// Indexoperator (nur lesen) auf die Symbole der rechten Regelseite
-    const Symbol& operator[](unsigned pos) const
+		prob = new_prob;
+	}
+
+	/// returns the lenghth of the rhs
+	unsigned arity() const 
     {
-        static const Symbol invalid;
-        return (pos < rhs.size()) ? rhs[pos] : invalid;
-    }
-    
-    /// Akzessor für lhs
-    const Symbol& get_lhs() const { return lhs; }
-    
-    /// Akzessor für rhs
-    const SymbolVector& get_rhs() const { return rhs; }
-    
-    void set(const Symbol& left, const SymbolVector& right)
+	    return rhs.size();
+	}
+
+	std::size_t hash() const 
     {
-        lhs = left;
-        rhs = right;
-        valid = !lhs.empty();
-    }
-    
-    /// Gibt die Länge der rechten Regelseite zurück.
-    unsigned arity() const
+		// left side first...
+	    std::size_t h = hash_int(lhs); // using size_t to calm down the hash_combine function...
+	    // now the right side
+	    for (unsigned i = 0; i < rhs.size(); ++i) {
+	        boost::hash_combine(h,rhs[i]);
+	    }
+	    // and eventually the probability
+	    boost::hash_combine(h,prob);
+	    return h;
+	}
+
+private:
+	// parses a string like "S -> NP VP [1.0]"
+	// Returns false, if there was a syntactic error
+	bool parse_rule(const std::string& s) 
     {
-        return rhs.size();
-    }
-    
-    /// Ausgabeoperator für PCFGRule
-    friend std::ostream& operator<<(std::ostream& o, const PCFGRule& r)
-    {
-        o << r.lhs << " -->";
-        for (unsigned i = 0; i < r.rhs.size(); ++i) {
-            o << " " << r.rhs[i];
-        }
-        return o;
-    }
-    
-    /// "Hasht" ein Regelobjekt
-    unsigned hash() const
-    {
-        // Linke Seite
-        unsigned h = FNVHash(lhs);
-        // Rechte Seite
-        for (unsigned i = 0; i < rhs.size(); ++i) {
-            // Wir verwenden boost::hash_combine zur Kombination aller Hashwerte
-            boost::hash_combine(h,rhs[i]);
-        }
-        return h;
-    }
-    
-private: // Funktionen
-    bool parse_rule(const std::string& s)
-    {
-        typedef boost::char_separator<char>     CharSeparator;
-        typedef boost::tokenizer<CharSeparator> Tokenizer;
-        typedef std::vector<std::string>        StringVector;
-        
-        Tokenizer tokens(s, CharSeparator("\t "));
-        StringVector vtokens(tokens.begin(),tokens.end());
-        if (vtokens.size() >= 2) {
-            if (vtokens[1] != "-->") {
-                std::cerr << "PCFGRule: missing arrow in rule '" << s << "'\n";
+        if (signature != 0) {
+            typedef boost::char_separator<char>     CharSeparator;
+            typedef boost::tokenizer<CharSeparator> Tokenizer;
+            typedef std::vector<std::string>        StringVector;
+            
+            Tokenizer tokens(s, CharSeparator("\t "));
+            StringVector vtokens(tokens.begin(),tokens.end());
+            if (vtokens.size() >= 3) {
+                if (vtokens[1] != "-->") {
+                    std::cerr << "PCFGRule: missing arrow in rule '" << s << "'\n";
+                    return false;
+                }
+                else if (vtokens[0] == "-->") {
+                    std::cerr << "PCFGRule: missing left-hand side in rule '" << s << "'\n";
+                    return false;
+                } 
+                // now check if the last item is a probability (e.g. [0.9])
+                Tokenizer prob_token(vtokens[vtokens.size()-1], CharSeparator("[]"));
+                StringVector prob_vector(prob_token.begin(),prob_token.end());
+                if (prob_vector.size() != 1) {
+                    std::cerr << "PCFGRule: missing probability in '" << s << "'\n";
+                    return false;
+                } else {
+                    // transform the strings to ints using the signature
+                    lhs = signature->add_symbol(vtokens[0]);
+                    vtokens.pop_back(); // remove the latest token (the probability)
+                    for (StringVector::const_iterator cit = vtokens.begin()+2; cit != vtokens.end(); ++cit) {
+                        rhs.push_back(signature->add_symbol(*cit));
+                    }
+                    prob = boost::lexical_cast<double>(prob_vector[0]);
+
+                }
+            } else {
+                std::cerr << "PCFGRule: Too few components in rule '" << s << "'\n";
                 return false;
             }
-            else if (vtokens[0] == "-->") {
-                std::cerr << "PCFGRule: missing left-hand side in rule '" << s << "'\n";
-                return false;
-            }
-            else {
-                // OK, setze lhs und rhs
-                lhs = vtokens[0];
-                rhs.assign(vtokens.begin()+2,vtokens.end());
-            }
-        }
-        else {
-            std::cerr << "PCFGRule: Too few components in rule '" << s << "'\n";
+            
+            return true;
+        } else {
+            std::cerr << "PCFGRule: No valid signature given for rule '" << s << "'\n";
             return false;
         }
-        
-        return true;
-    }
-    
-private:
-    // Aus: http://www.partow.net/programming/hashfunctions/
-    unsigned long FNVHash(const Symbol& s) const
+	   
+	}
+
+    // Hashfunction for an integer. Code from: http://burtleburtle.net/bob/hash/integer.html
+    uint32_t hash_int (uint32_t a) const
     {
-        const unsigned long fnv_prime = 0x811C9DC5;
-        unsigned long hash = 0;
-        for (unsigned i = 0; i < s.length(); i++) {
-            hash *= fnv_prime;
-            hash ^= s[i];
-        }
-        return hash;
+        a = (a ^ 61) ^ (a >> 16);
+        a = a + (a << 3);
+        a = a ^ (a >> 4);
+        a = a * 0x27d4eb2d;
+        a = a ^ (a >> 15);
+        return a;
     }
-    
-private:
-    Symbol        lhs;    ///< Linke Seite
-    SymbolVector  rhs;    ///< Rechte Seite
-    bool          valid;  ///< Ist die Regel wohlgeformt
-}; // PCFGRule
+
+private: // Variables
+	ID 			lhs;		///< Left side of the rule
+	IDVector	rhs;		///< Right side of the rule
+	Probability		prob;		///< The probability of this rule
+	bool			valid;		///< Is this rule correctly initialized?
+	ExtSignature*	signature;	///< Translates the internal used values to the external ones
+	
+};
 
 #endif

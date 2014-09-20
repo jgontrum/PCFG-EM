@@ -63,6 +63,10 @@ public: // Functions
     ExtSignature& get_signature() {
         return signature;
     }
+    
+    const SymbolSet& get_nonterminals() {
+        return nonterminal_symbols;
+    }
 
     /// True, if the given symbol is a non-terminal.
     bool is_nonterminal(const Symbol& sym) const {

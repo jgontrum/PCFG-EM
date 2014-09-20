@@ -58,7 +58,9 @@ public: // Functions
         return start_symbol;
     }
     
-    const ExtSignature& get_signature() const {
+    /// Get the Signature, that is used in this grammar. Other classes are allowed to
+    /// add new symbols.
+    ExtSignature& get_signature() {
         return signature;
     }
 

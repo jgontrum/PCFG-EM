@@ -66,7 +66,7 @@ public:
         return containsSymbol(symbol) ? external_to_internal.find(symbol)->second : -1; // return -1, if the symbol does not exist in the signature.
     }
 
-    // Returns the symbol for a given ID or an empty symvol
+    // Returns the symbol for a given ID or an empty symbol
 
     Symbol resolve_id(ID const & unknown_id) const {
         static const Symbol NoSymbol;

@@ -26,7 +26,7 @@ public: // Typedefs
     typedef Signature<ExternalSymbol> ExtSignature;
 
 public:
-    /// The default constructor creates an unvalid rule
+    /// The default constructor creates an invalid rule
 
     PCFGRule() : valid(false) {
         this->signature = 0; // setting a null pointer for the signature
@@ -45,46 +45,7 @@ public:
             LOG(WARNING) << "PCFGRule: Rule for '" << *this << "' could not be created.";
         }
     }
-
-    //////////////////////////////////////////////////////////////////////////
-    // Operators
-    //////////////////////////////////////////////////////////////////////////
-
-    bool operator==(const PCFGRule& r) const {
-        return lhs == r.lhs && rhs == r.rhs && prob == r.prob;
-    }
-
-    bool operator<(const PCFGRule& r) const {
-        if (prob < r.prob) return true;
-        if (lhs < r.lhs) return true;
-        if (lhs == r.lhs) return rhs < r.rhs;
-        return false;
-    }
-
-    /// a read-only index-operator to access the symbols on the rhs
-
-    const ID operator[](unsigned pos) const {
-        return (pos < rhs.size()) ? rhs[pos] : -1;
-    }
-
-    /// output-operator, prints the symbols as strings.
-
-    friend std::ostream& operator<<(std::ostream& o, const PCFGRule& r) {
-        assert((r.signature)->containsID(r.lhs));
-        o << (r.signature)->resolve_id(r.lhs) << " -->";
-        for (unsigned i = 0; i < r.rhs.size(); ++i) {
-            assert((r.signature)->containsID(r.rhs[i]));
-            o << " " << (r.signature)->resolve_id(r.rhs[i]);
-        }
-        o << " [" << r.prob << "]";
-        return o;
-    }
-
-    // conversion operator, to allow statemens like 'if (RULE) {...}'
-
-    operator bool() const {
-        return valid;
-    }
+    
 
     //////////////////////////////////////////////////////////////////////////
     // Getter & Setter
@@ -111,6 +72,47 @@ public:
     unsigned arity() const {
         return rhs.size();
     }
+
+    //////////////////////////////////////////////////////////////////////////
+    // Operators
+    //////////////////////////////////////////////////////////////////////////
+
+    bool operator==(const PCFGRule& r) const {
+        return lhs == r.lhs && rhs == r.rhs && prob == r.prob;
+    }
+
+    bool operator<(const PCFGRule& r) const {
+        if (prob < r.prob) return true;
+        if (lhs < r.lhs) return true;
+        if (lhs == r.lhs) return rhs < r.rhs;
+        return false;
+    }
+
+    /// a read-only index-operator to access the symbols on the rhs
+
+    const ID operator[](unsigned pos) const {
+        return (pos < rhs.size()) ? rhs[pos] : -1;
+    }
+
+    /// output-operator, prints the symbols as strings.
+
+    friend std::ostream& operator<<(std::ostream& o, const PCFGRule& r) {
+        assert((r.signature)->containsID(r.get_lhs()));
+        o << (r.signature)->resolve_id(r.get_lhs()) << " -->";
+        for (unsigned i = 0; i < r.arity(); ++i) {
+            assert((r.signature)->containsID(r[i]));
+            o << " " << (r.signature)->resolve_id(r[i]);
+        }
+        o << " [" << r.get_prob() << "]";
+        return o;
+    }
+
+    // conversion operator, to allow statements like 'if (RULE) {...}'
+
+    operator bool() const {
+        return valid;
+    }
+
 
     std::size_t hash() const {
         // left side first...

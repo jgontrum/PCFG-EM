@@ -33,13 +33,15 @@ int main(int argc, const char * argv[])
     if (file) {
         ProbabilisticContextFreeGrammar grammar(file);
         std::cout << grammar;
-        std::cout << "\nValid? " << grammar.is_valid_pcfg();
+//        std::cout << "\nValid? " << grammar.is_valid_pcfg();
 
         std::string sentence = "Maria mag Hans";
         Tokenizer tokens(sentence, CharSeparator("\t "));
         StringVector vtokens(tokens.begin(), tokens.end());
         
         InsideOutsideCalculator em(grammar, vtokens);
+        
+        std::cout << em.calculate_inside(grammar.get_start_symbol(),0,vtokens.size() -1);
 
     } else {
             std::cerr << "error reading file ";

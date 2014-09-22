@@ -17,6 +17,7 @@
 #include "../include/ProbabilisticContextFreeGrammar.hpp"
 #include "../include/PCFGRule.hpp"
 #include "../include/InsideOutsideCalculator.hpp"
+#include "../include/InsideOutsideCache.hpp"
 
 #include "../include/easylogging++.h"
 _INITIALIZE_EASYLOGGINGPP
@@ -38,8 +39,9 @@ int main(int argc, const char * argv[])
         std::string sentence = "Maria mag Hans";
         Tokenizer tokens(sentence, CharSeparator("\t "));
         StringVector vtokens(tokens.begin(), tokens.end());
+        InsideOutsideCache io_cache(grammar);
         
-        InsideOutsideCalculator em(grammar, vtokens);
+        InsideOutsideCalculator em(io_cache, vtokens);
         
         std::cout << em.calculate_inside(grammar.get_start_symbol(),0,vtokens.size() -1);
 

@@ -60,11 +60,11 @@ public: // Functions
     
     /// Get the Signature, that is used in this grammar. Other classes are allowed to
     /// add new symbols.
-    ExtSignature& get_signature() {
+    const ExtSignature& get_signature() const {
         return signature;
     }
     
-    const SymbolSet& get_nonterminals() {
+    const SymbolSet& get_nonterminals() const {
         return nonterminal_symbols;
     }
 

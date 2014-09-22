@@ -19,7 +19,7 @@
 
 class PCFGRule {
 public: // Typedefs
-    typedef int ID;
+    typedef uint32_t ID;
     typedef std::vector<ID> IDVector;
     typedef std::string ExternalSymbol;
     typedef double Probability;

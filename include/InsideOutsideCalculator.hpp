@@ -11,6 +11,8 @@
 #include "ProbabilisticContextFreeGrammar.hpp"
 #include "Signature.hpp"
 #include "PCFGRule.hpp"
+#include "InsideOutsideCache.hpp"
+
 #include <vector>
 #include <string>
 #include <cassert>
@@ -29,10 +31,10 @@ public:
     typedef ProbabilisticContextFreeGrammar::const_iterator     PCFGCIt;
     
 public:
-    InsideOutsideCalculator(ProbabilisticContextFreeGrammar& pcfg, ExtVector& sentence) :  grammar(pcfg), signature(pcfg.get_signature()) {
+    InsideOutsideCalculator(InsideOutsideCache& cache, ExtVector& sentence) :  grammar(cache.get_grammar()), signature(cache.get_grammar().get_signature()) {
         // create the input vector, that contains numeric values instead of strings 
         for (ExternalSymbol word : sentence) {
-            input.push_back(signature.add_symbol(word));
+            input.push_back(signature.resolve_symbol(word));
         }
         for (Symbol sym : input) {
             std::cout << sym << " - ";
@@ -45,9 +47,9 @@ public:
     /// of a sentence from a specified beginning position to an end position.
     /// See 'Foundations of Statistical Natural Language pProcessing' by Manning & Schuetze, pp.392 
     /// for further details about this implementation.
-    Probability calculate_inside(Symbol symbol, unsigned begin, unsigned end) {
+    Probability calculate_inside(Symbol symbol, unsigned short begin, unsigned short end) {
         LOG(INFO) << "InsideOutsideCalculator: Calculating Inside Probability: '" << signature.resolve_id(symbol) << "'(" << begin << ", " << end << ")";        PCFGRange rule_range = grammar.rules_for(symbol);
-        assert(begin >= end);
+        assert(begin <= end);
         // Base case: The length of the span is 0
         if (begin == end) {
             // Check, that this is a valid request
@@ -80,7 +82,7 @@ public:
     }
     
     
-    Probability calculate_outside(Symbol symbol, unsigned length) {
+    Probability calculate_outside(Symbol symbol, unsigned short length) {
         // Base case: The symbol is the start symbol and there is nothing outside the span
         if (length == input.size()) {
             return (grammar.get_start_symbol() == symbol)? 1 : 0;
@@ -92,8 +94,8 @@ public:
     }
     
 private:
-    ProbabilisticContextFreeGrammar&                        grammar;
-    ProbabilisticContextFreeGrammar::ExtSignature&          signature;
+    const ProbabilisticContextFreeGrammar&                        grammar;
+    const ProbabilisticContextFreeGrammar::ExtSignature&          signature;
     SymbolVector                                            input;
 };
 

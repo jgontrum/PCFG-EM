@@ -41,9 +41,16 @@ int main(int argc, const char * argv[])
         StringVector vtokens(tokens.begin(), tokens.end());
         InsideOutsideCache io_cache(grammar);
         
-        InsideOutsideCalculator em(io_cache, vtokens);
         
-        std::cout << em.calculate_inside(grammar.get_start_symbol(),0,vtokens.size() -1);
+        std::string sentence2 = "mag";
+        Tokenizer tokens2(sentence, CharSeparator("\t "));
+        StringVector vtokens2(tokens.begin(), tokens.end());
+        
+        
+        InsideOutsideCalculator em(io_cache, vtokens2);
+        
+        std::cout << em.calculate_outside(grammar.get_signature().resolve_symbol("mag"),1,2);
+//        std::cout << em.calculate_inside(grammar.get_start_symbol(), 0, vtokens.size() - 1);
 
     } else {
             std::cerr << "error reading file ";

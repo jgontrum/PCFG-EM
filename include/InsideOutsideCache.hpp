@@ -15,13 +15,16 @@
 #include <unordered_map>
 #include <limits>       // std::numeric_limits
 #include <cstdint>
+#include <bitset>
+
+#include "easylogging++.h"
+
 
 class InsideOutsideCache {
 public:
     typedef ProbabilisticContextFreeGrammar::Symbol     Symbol;
     typedef std::vector<const PCFGRule*>                RulePointerVector;
     typedef uint8_t                                     LengthType;
-    typedef uint16_t                                    CachedItem;
     typedef double                                      InsideOutsideProbability;
         
         
@@ -29,6 +32,7 @@ private:
     typedef ProbabilisticContextFreeGrammar::LHSRange                 PCFGRange;
     typedef ProbabilisticContextFreeGrammar::const_iterator           PCFGCIt;
     typedef std::unordered_map<Symbol, RulePointerVector>             SymbolToRuleVectorMap;
+    typedef uint64_t                                                  CachedItem;
     typedef std::unordered_map<CachedItem, InsideOutsideProbability>  CacheMap;
     
     
@@ -44,21 +48,59 @@ public:
         return grammar;
     }
     
-    inline const RulePointerVector& get_rules_for_first_symbol(const Symbol& first_symbol) const {
-        return first_symbol_rules.find(first_symbol)->second;
+    inline const RulePointerVector* const get_rules_for_first_symbol(const Symbol& first_symbol) const {
+        SymbolToRuleVectorMap::const_iterator cit = first_symbol_rules.find(first_symbol);
+        return cit != first_symbol_rules.end()? &(cit->second) : nullptr;
     }
 
-    inline const RulePointerVector& get_rules_for_second_symbol(const Symbol& second_symbol) const {
-        return second_symbol_rules.find(second_symbol)->second;
+    inline const RulePointerVector* const get_rules_for_second_symbol(const Symbol& second_symbol) const {
+        SymbolToRuleVectorMap::const_iterator cit = second_symbol_rules.find(second_symbol);
+        return cit != second_symbol_rules.end()? &(cit->second) : nullptr;    
     }
     
-    
+    inline const InsideOutsideProbability* const get_inside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end) const {
+        CachedItem key = create_inside_key(symbol, begin, end);
+        CacheMap::const_iterator cit = inside_cache.find(key);
+        return cit != inside_cache.end() ? &(cit->second) : nullptr;
+    }
 
+    inline const InsideOutsideProbability* const get_outside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end) const {
+        CachedItem key = create_inside_key(symbol, begin, end);
+        CacheMap::const_iterator cit = outside_cache.find(key);
+        return cit != outside_cache.end() ? &(cit->second) : nullptr;
+    }
     
-    inline CachedItem create_inside_key(const Symbol& symbol, const LengthType& begin, const LengthType& end) const {
+    inline void store_inside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end, const InsideOutsideProbability& value) {
+        inside_cache[create_inside_key(symbol, begin, end)] = value;
+    }
+
+    inline void store_outside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end, const InsideOutsideProbability& value) {
+        outside_cache[create_outside_key(symbol, begin, end)] = value;
+    }
+    
+private:
+    
+    void build_rhs_index() {
+        // iterate over all non terminals...
+        for (const Symbol& nt : grammar.get_nonterminals()) {
+            // ... and their rules.
+            PCFGRange rules_for_nt = grammar.rules_for(nt);
+            for (PCFGCIt rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) {
+                if (rule->arity() == 2) {
+                    // map the first and the second symbol on the rhs to a vector containing a pointer to this rule
+                    first_symbol_rules[(*rule)[0]].push_back(&(*rule));
+                    second_symbol_rules[(*rule)[1]].push_back(&(*rule));
+                }
+            }
+        }
+    }
+
+    CachedItem create_inside_key(const Symbol& symbol, const LengthType& begin, const LengthType& end) const {
         CachedItem buffer = symbol;     // assign the first 32bit in the buffer for the symbol
         buffer = (buffer << 8) | begin; // Now push the next 8bits in
-        return (buffer << 8) | end;     // and another 8bits.
+        buffer = (buffer << 8) | end;   // and another 8bits.
+        LOG(INFO) << "InsideOutsideCache: Converting Inside<" << symbol << "," << (int)begin << "," << (int)end << "> to 64bit key: " << (std::bitset<64>) buffer;
+        return buffer;
         
         /* Example:
          * Assuming that Symbol is a 32bit type and LengthType is 8bit. 
@@ -83,28 +125,14 @@ public:
          * for the symbol, begin and end. 
          */
     }
-    
-    inline CachedItem create_outside_key(const Symbol& symbol, const LengthType& length) const {
-        return (symbol << 8) | length;   // Concatenate the bits of 
+
+    CachedItem create_outside_key(const Symbol& symbol, const LengthType& begin, const LengthType& end) const {
+        CachedItem buffer = symbol;     // assign the first 32bit in the buffer for the symbol
+        buffer = (buffer << 8) | begin; // Now push the next 8bits in
+        buffer = (buffer << 8) | end;   // and another 8bits.
+        LOG(INFO) << "InsideOutsideCache: Converting Outside <" << symbol << "," << (int)begin << "," << (int)end << "> to 64bit key: " << (std::bitset<64>) buffer;
+        return buffer;
     }
-    
-private:
-    
-    void build_rhs_index() {
-        // iterate over all non terminals...
-        for (const Symbol& nt : grammar.get_nonterminals()) {
-            // ... and their rules.
-            PCFGRange rules_for_nt = grammar.rules_for(nt);
-            for (PCFGCIt rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) {
-                if (rule->arity() == 2) {
-                    // map the first and the second symbol on the rhs to a vector containing a pointer to this rule
-                    first_symbol_rules[(*rule)[0]].push_back(&(*rule));
-                    second_symbol_rules[(*rule)[1]].push_back(&(*rule));
-                }
-            }
-        }
-    }
-    
     
     
     
@@ -116,7 +144,8 @@ private:
     SymbolToRuleVectorMap first_symbol_rules;
     SymbolToRuleVectorMap second_symbol_rules;
 
-
+    CacheMap inside_cache;
+    CacheMap outside_cache;
     
 };
 

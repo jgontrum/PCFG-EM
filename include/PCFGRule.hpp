@@ -63,13 +63,13 @@ public:
         return prob;
     }
 
-    void set_probability(Probability new_prob) {
+    void set_probability(Probability& new_prob) {
         prob = new_prob;
     }
 
     /// returns the lenghth of the rhs
 
-    unsigned arity() const {
+    const unsigned arity() const {
         return rhs.size();
     }
 

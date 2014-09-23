@@ -1,0 +1,7 @@
+S --> NP VP
+NP --> Hans
+NP --> Maria
+NP --> Hase
+VP --> V NP
+V  --> mag
+V  --> streichelt

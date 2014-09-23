@@ -30,7 +30,7 @@ public:
  
 private:
     typedef std::string String;
-    typedef InsideOutsideCache::RulePointerVector               RulePointerVector;
+    typedef ProbabilisticContextFreeGrammar::RulePointerVector  RulePointerVector;
     typedef std::vector<Symbol>                                 SymbolVector;
     typedef ProbabilisticContextFreeGrammar::LHSRange           PCFGRange;
     typedef ProbabilisticContextFreeGrammar::const_iterator     PCFGCIt;
@@ -79,11 +79,15 @@ public:
                 Symbol terminal_symbol = input[begin];
                 for (PCFGCIt rule = rule_range.first; rule != rule_range.second; ++rule) {
                     if ((*rule)[0] == terminal_symbol && rule->arity() == 1) {
+                        LOG(INFO) << "InsideOutsideCalculator: Inside Probability: is '"<< rule->get_prob() << "' for " << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                        
                         cache.store_inside_cache(symbol, begin, end, rule->get_prob());
                         return rule->get_prob();
                     }
                 }
             } else {
+                LOG(INFO) << "InsideOutsideCalculator: Inside Probability: is '0' for " << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                
                 cache.store_inside_cache(symbol, begin, end, 0);
                 return 0;
             }
@@ -106,6 +110,8 @@ public:
                 }
             }
         }
+        LOG(INFO) << "InsideOutsideCalculator: Inside Probability: is '" << score << "' for " << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+        
         cache.store_inside_cache(symbol, begin, end, score);
         return score;
     }
@@ -124,41 +130,51 @@ public:
             LOG(INFO) << "InsideOutsideCalculator: Using cached Outside Probability (" << *cached_prob << ") for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
             return *cached_prob;
         }
-        
+                
         // Base case: begin is 0 and end the the length of the sentence (-1)
         if (begin == 0 && end == sentence_len - 1) {
             // If the symbol is the start symbol, it covers the whole sentence, so we return 1
             if (grammar.get_start_symbol() == symbol) {
+                LOG(INFO) << "InsideOutsideCalculator: Outside probability  is '1' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+
                 cache.store_outside_cache(symbol, begin, end, 1);
                 return 1;
             } else { // If not, this case is not possible and we return 0
+                LOG(INFO) << "InsideOutsideCalculator: Outside probability  is '0' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+
                 cache.store_outside_cache(symbol, begin, end, 0);
                 return 0;
             }
         }
-        
+
         // Inductive case:
         // Case 1: 'symbol' is the left Symbol on the rhs of a rule.
         InsideOutsideProbability score_left = 0;
         // Iterate over all rules, where 'symbol' is the first symbol on the rhs:
         // Remember: RulePointerVector is a a vector of pointers, so dereferencing 
         // the iterator 'rule' will give you the pointer, not the _actual_ object.
-        const RulePointerVector *  rules = cache.get_rules_for_first_symbol(symbol);
-        for (RulePointerVector::const_iterator rule = rules->begin();
-             rule != rules->end();
-             ++rule) {
-            
-            assert((*rule)->arity() == 2);
-            std::cout << **rule;
-            // Iterate over all possible divisions
-            for (unsigned split = end + 1; split < sentence_len; ++split) { 
-                InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), begin, split); // Recursion
-                inner_score *= (*rule)->get_prob();
-                inner_score *= calculate_inside((*rule)[1], end + 1, split); // inside for the other child symbol
-                
-                score_left += inner_score;
+        const RulePointerVector *  rules = grammar.get_rules_for_first_symbol(symbol);
+        if (rules != nullptr) {
+            for (RulePointerVector::const_iterator rule = rules->begin();
+                    rule != rules->end();
+                    ++rule) {
+                LOG(INFO) << "InsideOutsideCalculator: Current rule: '"<< **rule <<"' with '" << signature.resolve_id(symbol) << "' as first symbol on the rhs.'";
+
+                assert((*rule)->arity() == 2);
+
+                // Iterate over all possible divisions
+                for (unsigned split = end + 1; split < sentence_len; ++split) {
+                    InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), begin, split); // Recursion
+                    inner_score *= (*rule)->get_prob();
+                    inner_score *= calculate_inside((*rule)[1], end + 1, split); // inside for the other child symbol
+
+                    score_left += inner_score;
+                }
             }
+        } else {
+            LOG(INFO) << "InsideOutsideCalculator: No rule with '" << signature.resolve_id(symbol) << "' as first symbol on the rhs exists.'";
         }
+        
 
         LOG(INFO) << "InsideOutsideCalculator: Outside probability for the left child is '"<< score_left << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
 
@@ -166,22 +182,27 @@ public:
         // Case 2: 'symbol' is the right Symbol on the rhs of a rule.
         InsideOutsideProbability score_right = 0;
         // Iterate over all rules, where 'symbol' is the second symbol on the rhs:
-        rules = cache.get_rules_for_second_symbol(symbol);
-        for (RulePointerVector::const_iterator rule = rules->begin();
-             rule != rules->end();
-             ++rule) {
+        rules = grammar.get_rules_for_second_symbol(symbol);
+        if (rules != nullptr) {
+            for (RulePointerVector::const_iterator rule = rules->begin();
+                    rule != rules->end();
+                    ++rule) {
+                LOG(INFO) << "InsideOutsideCalculator: Current rule: '" << **rule << "' with '" << signature.resolve_id(symbol) << "' as second symbol on the rhs.'";
 
-            assert((*rule)->arity() == 2);
-            std::cout << **rule;
-            // Iterate over all possible divisions
-            for (unsigned split = 0; split < begin - 1; ++split) { 
-                InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), split, end); // Recursion
-                inner_score *= (*rule)->get_prob();
-                inner_score *= calculate_inside((*rule)[0], split, begin -1); // inside for the other child symbol
-                
-                score_left += inner_score;
+                assert((*rule)->arity() == 2);
+                // Iterate over all possible divisions
+                for (unsigned split = 0; split < begin; ++split) {
+                    InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), split, end); // Recursion
+                    inner_score *= (*rule)->get_prob();
+                    inner_score *= calculate_inside((*rule)[0], split, begin - 1); // inside for the other child symbol
+
+                    score_left += inner_score;
+                }
             }
+        } else {
+            LOG(INFO) << "InsideOutsideCalculator: No rule with '" << signature.resolve_id(symbol) << "' as second symbol on the rhs exists.'";
         }
+        
         LOG(INFO) << "InsideOutsideCalculator: Outside probability for the right child is '" << score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
 
         LOG(INFO) << "InsideOutsideCalculator: Outside probability  is '" << score_left + score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";

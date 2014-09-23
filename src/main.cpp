@@ -30,7 +30,9 @@ int main(int argc, const char * argv[])
     typedef std::vector<std::string> StringVector;
 
     std::ifstream file;
-    file.open("examples/grammar.pcfg", std::ifstream::in);
+//    file.open("examples/grammar.pcfg", std::ifstream::in);
+    file.open("examples/grammar_no_prob.pcfg", std::ifstream::in);
+
     if (file) {
         ProbabilisticContextFreeGrammar grammar(file);
         std::cout << grammar;
@@ -49,7 +51,7 @@ int main(int argc, const char * argv[])
         
         InsideOutsideCalculator em(io_cache, vtokens2);
         
-        std::cout << em.calculate_outside(grammar.get_signature().resolve_symbol("mag"),1,2);
+        std::cout << em.calculate_outside(grammar.get_signature().resolve_symbol("V"),1,1);
 //        std::cout << em.calculate_inside(grammar.get_start_symbol(), 0, vtokens.size() - 1);
 
     } else {

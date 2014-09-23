@@ -63,7 +63,7 @@ public:
         return prob;
     }
 
-    void set_probability(Probability& new_prob) {
+    void set_probability(Probability new_prob) {
         prob = new_prob;
     }
 
@@ -149,18 +149,17 @@ private:
                 // now check if the last item is a probability (e.g. [0.9])
                 Tokenizer prob_token(vtokens[vtokens.size() - 1], CharSeparator("[]"));
                 StringVector prob_vector(prob_token.begin(), prob_token.end());
-                if (prob_vector.size() != 1) {
-                    std::cerr << "PCFGRule: missing probability in '" << s << "'\n";
-                    return false;
+                if (prob_vector[0] == vtokens[vtokens.size() - 1]) {
+                    std::cerr << "PCFGRule: missing probability in '" << s << "' Setting value to 1. This may lead to an invalid PCFG.\n";
+                    prob = 1;
                 } else {
-                    // transform the strings to ints using the signature
-                    lhs = signature->add_symbol(vtokens[0]);
+                    prob = boost::lexical_cast<double>(prob_vector[0]); // TODO assert something here
                     vtokens.pop_back(); // remove the latest token (the probability)
-                    for (StringVector::const_iterator cit = vtokens.begin() + 2; cit != vtokens.end(); ++cit) {
-                        rhs.push_back(signature->add_symbol(*cit));
-                    }
-                    prob = boost::lexical_cast<double>(prob_vector[0]);
-
+                }
+                // transform the strings to ints using the signature
+                lhs = signature->add_symbol(vtokens[0]);
+                for (StringVector::const_iterator cit = vtokens.begin() + 2; cit != vtokens.end(); ++cit) {
+                    rhs.push_back(signature->add_symbol(*cit));
                 }
             } else {
                 std::cerr << "PCFGRule: Too few components in rule '" << s << "'\n";

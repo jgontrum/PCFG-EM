@@ -14,7 +14,9 @@
 #include <algorithm>
 
 #include <boost/tokenizer.hpp>
+#include <boost/fusion/container/vector.hpp>
 #include <boost/unordered_set.hpp>
+#include <unordered_map>
 
 #include "PCFGRule.hpp"
 #include "Signature.hpp"
@@ -27,21 +29,28 @@ public:
     typedef boost::unordered_set<Symbol>                SymbolSet;
     typedef PCFGRule::ExternalSymbol                    ExternalSymbol;
     typedef Signature<ExternalSymbol>                   ExtSignature;
+    typedef std::vector<const PCFGRule*>                RulePointerVector;
+
 
 private:
-    typedef SymbolSet::const_iterator                   SymbolSetIter;
-    typedef std::vector<PCFGRule>                       RuleVector;
+    typedef SymbolSet::const_iterator                          SymbolSetIter;
+    typedef PCFGRule::Probability                              Probability;
+    typedef std::vector<PCFGRule>                              RuleVector;
+    typedef std::unordered_map<Symbol, RulePointerVector>      SymbolToRuleVectorMap;
+    typedef std::unordered_map<Symbol, unsigned>               SymbolToCounterMap;
+    typedef std::unordered_map<Symbol, Probability>            SymbolToProbabilityMap;
+
 
 public: 
     // Rule iterator
     typedef RuleVector::const_iterator                  const_iterator;
     typedef RuleVector::iterator                        iterator;
+    typedef std::pair<iterator, iterator>               LHSRangeMutable;
     typedef std::pair<const_iterator, const_iterator>   LHSRange;
-    typedef std::pair<iterator, iterator>               MutableLHSRange;
 
 
 private:
-    typedef std::map<Symbol, LHSRange> RuleIndex;
+    typedef std::map<Symbol, LHSRangeMutable> RuleIndex;
 
 public: // Functions  
 
@@ -50,6 +59,8 @@ public: // Functions
     /// while the first seen symbol defines the start symbol.
     ProbabilisticContextFreeGrammar(std::istream& grm_in) {
         read_in(grm_in);
+        build_rule_rhs_index();
+        normalize_probabilities();
     }
 
     /// Returns the id of the start symbol. Use the signature to translate it
@@ -79,12 +90,32 @@ public: // Functions
     }
 
     LHSRange rules_for(const Symbol& lhs) const {
-        // Anm. LHSRange ist ein ziemlich einfaches Objekt, so dass man es auch
-        // per Wert (also nicht per Referenz zur�ckgeben kann)
         RuleIndex::const_iterator f_lhs = rule_index.find(lhs);
         return (f_lhs != rule_index.end()) ? f_lhs->second : LHSRange(end(), end());
     }
 
+    LHSRangeMutable rules_for(const Symbol& lhs)  {
+        RuleIndex::iterator f_lhs = rule_index.find(lhs);
+        return (f_lhs != rule_index.end()) ? f_lhs->second : LHSRangeMutable(end(), end());
+    }
+
+    inline const RulePointerVector * const get_rules_for_first_symbol(const Symbol& first_symbol) const {
+        SymbolToRuleVectorMap::const_iterator cit = first_symbol_rules.find(first_symbol);
+        return cit != first_symbol_rules.end() ? &(cit->second) : nullptr;
+    }
+
+    inline const RulePointerVector * const get_rules_for_second_symbol(const Symbol& second_symbol) const {
+        SymbolToRuleVectorMap::const_iterator cit = second_symbol_rules.find(second_symbol);
+        return cit != second_symbol_rules.end() ? &(cit->second) : nullptr;
+    }
+
+    iterator begin() {
+        return productions.begin();
+    }
+
+    iterator end() {
+        return productions.end();
+    }
 
     const_iterator begin() const {
         return productions.begin();
@@ -125,6 +156,32 @@ public: // Functions
             if (score != 1) return false;
         }
         return true;
+    }
+    
+    void normalize_probabilities() {
+        // Iterate over all rules and sum up the probability for all rules for a lhs symbol.
+        // Also count, how many rules belong to a lhs symbol.
+        
+        // Iterate over all nonterminals...
+        for (const Symbol& nt : get_nonterminals()) {
+            Probability current_probability = 0.0;
+            unsigned counter = 0;            
+            // ... and their rules.
+            LHSRangeMutable rules_for_nt = rules_for(nt);
+            for (iterator rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) { 
+                ++counter;
+                current_probability += rule->get_prob();
+            }
+            
+            // If the summed up probability is not exactly 1, normalize the probability for all 
+            // rules for this lhs symbol. We assign them the probability 1/counter.
+            if (current_probability != 1) {
+                LOG(WARNING) << "PCFG: Probabilities for the symbol '" << get_signature().resolve_id(nt) << "' sum up to '" << current_probability << "' and are therefore illegal. Belonging rules will be normalized.";;
+                for (iterator rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) {
+                    rule->set_probability(1.0/counter);
+                }
+            }
+        }
     }
     
     /// Stream output operator
@@ -168,10 +225,10 @@ private:
 
     
     // Add a rule to the rule-vector
-    void add_rule(const PCFGRule& r) {
+    void add_rule(PCFGRule& r) {
         // save it in the rule vector
         productions.push_back(r);
-        
+        RuleVector::iterator it = productions.begin();
         // add the lhs to the nonterminals and the vocabulary
         nonterminal_symbols.insert(r.get_lhs());
         vocabulary.insert(r.get_lhs());
@@ -198,11 +255,11 @@ private:
             // Erstes LHS-Symbol im Regelvektor bestimmen
             Symbol current_lhs = begin()->get_lhs();
             // Anfang des Bereichs f�r dieses Symbol
-            const_iterator left = begin();
-            for (const_iterator r = begin(); r != end(); ++r) {
+            iterator left = begin();
+            for (iterator r = begin(); r != end(); ++r) {
                 if (r->get_lhs() != current_lhs) {
                     // Nichtterminalbereich ist hier zu Ende
-                    rule_index[current_lhs] = LHSRange(left, r);
+                    rule_index[current_lhs] = LHSRangeMutable(left, r);
                     // current_lhs ist nun das neue LHS-Symbol
                     current_lhs = r->get_lhs();
                     // r wird nun zum Anfang des neuen Bereichs
@@ -210,7 +267,23 @@ private:
                 }
             } // for
             // Der letzte Bereich muss noch eingetragen werden
-            rule_index[current_lhs] = LHSRange(left, end());
+            rule_index[current_lhs] = LHSRangeMutable(left, end());
+        }
+    }
+    
+    
+    void build_rule_rhs_index() {
+        // iterate over all non terminals...
+        for (const Symbol& nt : get_nonterminals()) {
+            // ... and their rules.
+            LHSRange rules_for_nt = rules_for(nt);
+            for (const_iterator rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) {
+                if (rule->arity() == 2) {
+                    // map the first and the second symbol on the rhs to a vector containing a pointer to this rule
+                    first_symbol_rules[(*rule)[0]].push_back(&(*rule));
+                    second_symbol_rules[(*rule)[1]].push_back(&(*rule));
+                }
+            }
         }
     }
 
@@ -243,6 +316,9 @@ private: // Instanzvariablen
     RuleVector productions; ///< Produktionsregeln
     RuleIndex rule_index; ///< Indexstruktur zum Auffinden von Regeln
     ExtSignature signature; ///< The signature to translate the symbol IDs of the rules to strings
+
+    SymbolToRuleVectorMap first_symbol_rules;
+    SymbolToRuleVectorMap second_symbol_rules;
 }; // ContextFreeGrammar
 
 #endif

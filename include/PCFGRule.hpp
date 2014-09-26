@@ -116,19 +116,6 @@ public:
         return valid;
     }
 
-
-    std::size_t hash() const {
-        // left side first...
-        std::size_t h = hash_int(lhs); // using size_t to calm down the hash_combine function...
-        // now the right side
-        for (unsigned i = 0; i < rhs.size(); ++i) {
-            boost::hash_combine(h, rhs[i]);
-        }
-        // and eventually the probability
-        boost::hash_combine(h, prob);
-        return h;
-    }
-
 private:
     // parses a string like "S -> NP VP [1.0]"
     // Returns false, if there was a syntactic error
@@ -177,15 +164,34 @@ private:
 
     }
 
-    // Hashfunction for an integer. Code from: http://burtleburtle.net/bob/hash/integer.html
-    uint32_t hash_int(uint32_t a) const {
-        a = (a ^ 61) ^ (a >> 16);
-        a = a + (a << 3);
-        a = a ^ (a >> 4);
-        a = a * 0x27d4eb2d;
-        a = a ^ (a >> 15);
-        return a;
-    }
+    
+public:
+    class Hasher {
+    public:
+        std::size_t operator()(const PCFGRule& k) const {
+            // left side first...
+            std::size_t h = hash_int(k.get_lhs()); // using size_t to calm down the hash_combine function...
+            // now the right side
+            for (unsigned i = 0; i < k.get_rhs().size(); ++i) {
+                boost::hash_combine(h, k.get_rhs()[i]);
+            }
+            // and eventually the probability
+            boost::hash_combine(h, k.get_prob());
+            return h;
+        }
+        
+    private:
+        // Hashfunction for an integer. Code from: http://burtleburtle.net/bob/hash/integer.html
+        uint32_t hash_int(uint32_t a) const {
+            a = (a ^ 61) ^ (a >> 16);
+            a = a + (a << 3);
+            a = a ^ (a >> 4);
+            a = a * 0x27d4eb2d;
+            a = a ^ (a >> 15);
+            return a;
+        }
+    };
+
 
 private: // Variables
     ID lhs; ///< Left side of the rule

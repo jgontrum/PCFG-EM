@@ -16,14 +16,17 @@
 #include <boost/functional/hash.hpp>
 #include <boost/lexical_cast.hpp> // to cast a string to double
 #include "easylogging++.h"
+#include "Signature.hpp"
 
 class PCFGRule {
 public: // Typedefs
-    typedef uint32_t ID;
-    typedef std::vector<ID> IDVector;
+    
     typedef std::string ExternalSymbol;
-    typedef double Probability;
     typedef Signature<ExternalSymbol> ExtSignature;
+    typedef ExtSignature::ID ID;
+    typedef std::vector<ID> IDVector;
+    typedef double Probability;
+
 
 public:
     /// The default constructor creates an invalid rule

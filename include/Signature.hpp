@@ -20,7 +20,7 @@ class Signature {
     // Typedefs:
 public:
     typedef EXTERNAL_OBJECT_TYPE Symbol;
-    typedef int ID;
+    typedef int32_t ID;
 
 private:
     typedef boost::unordered_map<Symbol, ID> SymbolToIDMap;
@@ -52,7 +52,7 @@ public:
             return result;
         } else {
             // add symbol to signature
-            LOG(INFO) << "Signature: New mapping added: '" << new_symbol << "' <-> " << number_of_entries();
+            VLOG(5) << "Signature: New mapping added: '" << new_symbol << "' <-> " << number_of_entries();
             external_to_internal[new_symbol] = number_of_entries();
             internal_to_external.push_back(new_symbol);
             return number_of_entries() - 1;

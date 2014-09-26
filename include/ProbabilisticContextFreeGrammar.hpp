@@ -14,7 +14,6 @@
 #include <algorithm>
 
 #include <boost/tokenizer.hpp>
-#include <boost/fusion/container/vector.hpp>
 #include <boost/unordered_set.hpp>
 #include <unordered_map>
 
@@ -30,11 +29,10 @@ public:
     typedef PCFGRule::ExternalSymbol                    ExternalSymbol;
     typedef Signature<ExternalSymbol>                   ExtSignature;
     typedef std::vector<const PCFGRule*>                RulePointerVector;
-
+    typedef PCFGRule::Probability                       Probability;
 
 private:
     typedef SymbolSet::const_iterator                          SymbolSetIter;
-    typedef PCFGRule::Probability                              Probability;
     typedef std::vector<PCFGRule>                              RuleVector;
     typedef std::unordered_map<Symbol, RulePointerVector>      SymbolToRuleVectorMap;
     typedef std::unordered_map<Symbol, unsigned>               SymbolToCounterMap;
@@ -74,7 +72,10 @@ public: // Functions
     const ExtSignature& get_signature() const {
         return signature;
     }
-    
+
+    ExtSignature& get_signature() {
+        return signature;
+    }
     const SymbolSet& get_nonterminals() const {
         return nonterminal_symbols;
     }

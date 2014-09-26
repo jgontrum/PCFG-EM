@@ -5,3 +5,4 @@ NP --> Hase
 VP --> V NP
 V  --> mag
 V  --> streichelt
+S --> V NP

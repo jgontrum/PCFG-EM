@@ -14,6 +14,7 @@
 
 #include <boost/unordered_set.hpp>
 #include <boost/program_options.hpp>
+#include <boost/lexical_cast.hpp> // to cast a string to unsigned
 
 #include "../include/Signature.hpp"
 #include "../include/ProbabilisticContextFreeGrammar.hpp"
@@ -35,14 +36,14 @@ int main(int argc, const char * argv[])
     
     // Define and parse the program options (-> http://www.radmangames.com/programming/how-to-use-boost-program_options)
     namespace po = boost::program_options;
-    po::options_description desc;
+    po::options_description desc("PCFG EMTraining Options");
     desc.add_options()
             ("help", "Print help messages")
             ("grammar,g", po::value<std::string>(), "Path to a PCFG.")
             ("train,t", po::value<std::string>(), "Path to the training set with sentences seperated by newlines.")
             ("save,s", po::value<std::string>(), "Path to save the altered grammar")
             ("out,o", "Output the grammar after the training.")
-            ("iterations,i", po::value<unsigned>(), "Amount of training circles to perform. (Default: 3)")
+            ("iterations,i", po::value<std::string>(), "Amount of training circles to perform. (Default: 3)")
             ;
 
     po::variables_map vm; 
@@ -57,11 +58,13 @@ int main(int argc, const char * argv[])
     if (vm.count("grammar")) {
         if (vm.count("train")) { 
             std::ifstream grammar_file;
-            grammar_file.open(vm["grammar"].as<std::string>(), std::ifstream::in);
+            std::string grammar_arg = vm["grammar"].as<std::string>();
+            grammar_file.open(grammar_arg.substr(1, grammar_arg.size()), std::ifstream::in);
             if (grammar_file) {
 
                 std::ifstream training_file;
-                training_file.open(vm["train"].as<std::string>(), std::ifstream::in);
+                std::string training_arg = vm["train"].as<std::string>();
+                training_file.open(training_arg.substr(1, grammar_arg.size()), std::ifstream::in);
 
                 if (training_file) {
                     // Read in grammar
@@ -72,7 +75,10 @@ int main(int argc, const char * argv[])
                     
                     // Perform the actual training
                     if (vm.count("iterations")) {
-                        trainer.train(vm["iterations"].as<unsigned>());
+                        std::string iterations_arg = vm["iterations"].as<std::string>();
+                        unsigned it = boost::lexical_cast<unsigned>(iterations_arg.substr(1, iterations_arg.size()));
+
+                        trainer.train(it);
                     } else {
                         trainer.train(3); // default
                     }
@@ -83,20 +89,33 @@ int main(int argc, const char * argv[])
                     }
                     // If wanted, save the new grammar in a file
                     if (vm.count("save")) {
-                        // ...
+                        std::string save_arg = vm["save"].as<std::string>();
+                        
+                        std::ofstream save_file(save_arg.substr(1, save_arg.size()));
+                        
+                        if (save_file) {
+                            save_file << grammar;
+                            save_file.close();
+                        } else {
+                            std::cerr << "Could not write to file: '" << save_arg << "'";
+                            return 1;
+                        }
                     }
                 } else {
-                    std::cerr << "Could not read training data.";
+                    std::cerr << "Could not read training data: '" << vm["train"].as<std::string>() << "'";
+                    return 1;
                 }
             } else {
-                std::cerr << "Could not read PCFG.";
+                std::cerr << "Could not read PCFG: '" << vm["grammar"].as<std::string>() << "'";
+                return 1;
             }
         } else {
             std::cerr << "Please specify a training file.\n";
             return 1;
         }
     } else {
-        std::cerr << "Please specify a grammar.\n";
+        std::cerr << "Please specify a grammar file.\n";
+        return 1;
     }
     
 }

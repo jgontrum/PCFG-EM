@@ -43,7 +43,7 @@ public:
         this->signature = &signature;
         valid = parse_rule(s);
         if (valid) {
-            LOG(INFO) << "PCFGRule: Rule for '" << *this << "' successfully created.";
+            VLOG(7) << "PCFGRule: Rule for '" << *this << "' successfully created.";
         } else {
             LOG(WARNING) << "PCFGRule: Rule for '" << *this << "' could not be created.";
         }
@@ -130,17 +130,17 @@ private:
             StringVector vtokens(tokens.begin(), tokens.end());
             if (vtokens.size() >= 3) {
                 if (vtokens[1] != "-->") {
-                    std::cerr << "PCFGRule: missing arrow in rule '" << s << "'\n";
+                    LOG(ERROR) << "PCFGRule: missing arrow in rule '" << s << "'";
                     return false;
                 } else if (vtokens[0] == "-->") {
-                    std::cerr << "PCFGRule: missing left-hand side in rule '" << s << "'\n";
+                    LOG(ERROR) << "PCFGRule: missing left-hand side in rule '" << s << "'";
                     return false;
                 }
                 // now check if the last item is a probability (e.g. [0.9])
                 Tokenizer prob_token(vtokens[vtokens.size() - 1], CharSeparator("[]"));
                 StringVector prob_vector(prob_token.begin(), prob_token.end());
                 if (prob_vector[0] == vtokens[vtokens.size() - 1]) {
-                    std::cerr << "PCFGRule: missing probability in '" << s << "' Setting value to 1. This may lead to an invalid PCFG.\n";
+                    LOG(WARNING) << "PCFGRule: missing probability in '" << s << "' Setting value to 1. This may lead to an invalid PCFG.";
                     prob = 1;
                 } else {
                     prob = boost::lexical_cast<double>(prob_vector[0]); // TODO assert something here
@@ -152,13 +152,13 @@ private:
                     rhs.push_back(signature->add_symbol(*cit));
                 }
             } else {
-                std::cerr << "PCFGRule: Too few components in rule '" << s << "'\n";
+                LOG(ERROR) << "PCFGRule: Too few components in rule '" << s << "'";
                 return false;
             }
 
             return true;
         } else {
-            std::cerr << "PCFGRule: No valid signature given for rule '" << s << "'\n";
+            LOG(ERROR) << "PCFGRule: No valid signature given for rule '" << s << "'";
             return false;
         }
 

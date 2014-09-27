@@ -44,6 +44,16 @@ int main(int argc, const char * argv[])
         if (training_file) {
             
             EMTrainer trainer(grammar, training_file);
+            
+            std::cout << grammar << "\n\n";
+            
+            trainer.train(1);
+
+            std::cout << grammar << "\n\n";
+
+            trainer.train(1);
+
+            std::cout << grammar << "\n\n";
 //            
 //            std::string sentence = "Maria mag Hans";
 //            Tokenizer tokens(sentence, CharSeparator("\t "));

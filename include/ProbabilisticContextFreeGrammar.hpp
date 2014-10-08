@@ -173,10 +173,10 @@ public: // Functions
                 ++counter;
                 current_probability += rule->get_prob();
             }
-            
+                        
             // If the summed up probability is not exactly 1, normalize the probability for all 
             // rules for this lhs symbol. We assign them the probability 1/counter.
-            if (current_probability != 1) {
+            if ((int)(current_probability*1000000+0.5)/1000000.0 != 1) { // ceil
                 LOG(WARNING) << "PCFG: Probabilities for the symbol '" << get_signature().resolve_id(nt) << "' sum up to '" << current_probability << "' and are therefore illegal. Belonging rules will be normalized.";;
                 for (iterator rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) {
                     rule->set_probability(1.0/counter);
@@ -203,6 +203,12 @@ private:
             if (!line.empty() && line[0] != '#') {
                 /// create a rule
                 PCFGRule r(line, signature);
+                if (first_rule && !r) { // this is the first line of the grammar and the creation of the rule failed. Setting this symbol as startsymbol
+                    first_rule = false;
+                    VLOG(5) << "PCFG: Setting '" << line << "' as startsymbol.";
+                    set_start_symbol(signature.add_symbol(line));
+                    continue;
+                }
                 if (r) {
                     add_rule(r);
                     if (first_rule) {
@@ -216,7 +222,7 @@ private:
             }
             ++line_no;
         }
-
+        
         // Sort the rules using the '<'-operator of PCFGRule
         std::sort(productions.begin(), productions.end());
         // build the index 

@@ -85,9 +85,10 @@ public:
     }
 
     bool operator<(const PCFGRule& r) const {
-        if (prob < r.prob) return true;
         if (lhs < r.lhs) return true;
-        if (lhs == r.lhs) return rhs < r.rhs;
+        if (lhs == r.lhs) {
+            if (prob < r.prob) return rhs < r.rhs;
+        }
         return false;
     }
 
@@ -100,14 +101,20 @@ public:
     /// output-operator, prints the symbols as strings.
 
     friend std::ostream& operator<<(std::ostream& o, const PCFGRule& r) {
-        assert((r.signature)->containsID(r.get_lhs()));
-        o << (r.signature)->resolve_id(r.get_lhs()) << " -->";
-        for (unsigned i = 0; i < r.arity(); ++i) {
-            assert((r.signature)->containsID(r[i]));
-            o << " " << (r.signature)->resolve_id(r[i]);
+        if (r) {
+            assert((r.signature)->containsID(r.get_lhs()));
+            o << (r.signature)->resolve_id(r.get_lhs()) << " -->";
+            for (unsigned i = 0; i < r.arity(); ++i) {
+                assert((r.signature)->containsID(r[i]));
+                o << " " << (r.signature)->resolve_id(r[i]);
+            }
+            o << " [" << r.get_prob() << "]";
+            return o;
+        } else {
+            o << "Invalid rule.";
+            return o;
         }
-        o << " [" << r.get_prob() << "]";
-        return o;
+
     }
 
     // conversion operator, to allow statements like 'if (RULE) {...}'
@@ -129,10 +136,10 @@ private:
             Tokenizer tokens(s, CharSeparator("\t "));
             StringVector vtokens(tokens.begin(), tokens.end());
             if (vtokens.size() >= 3) {
-                if (vtokens[1] != "-->") {
+                if (vtokens[1] != "-->" && vtokens[1] != "->") {
                     LOG(ERROR) << "PCFGRule: missing arrow in rule '" << s << "'";
                     return false;
-                } else if (vtokens[0] == "-->") {
+                } else if (vtokens[0] == "-->" || vtokens[0] == "->") {
                     LOG(ERROR) << "PCFGRule: missing left-hand side in rule '" << s << "'";
                     return false;
                 }

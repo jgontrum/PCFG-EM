@@ -18,6 +18,8 @@
 
 #include <boost/tokenizer.hpp>
 #include <sstream>
+#include <cmath>
+#include <limits>       // std::numeric_limits
 
 #include "../include/easylogging++.h"
 
@@ -46,19 +48,41 @@ public:
         read_in(corpus);
     }
     
+    /// Perfom the EM training exactly x times.
     void train(unsigned no_of_loops) {
         bool cleaned = false;
+        double last_changes = 0;
         
         for (unsigned i = 0; i < no_of_loops; ++i) {
-            train();
+            last_changes = train();
             
             // clean the grammar only after the first iteration.
             if (!cleaned) {
                 grammar.clean_grammar();
                 cleaned = true;
             }
-
         }
+
+        VLOG(1) << "EMTrainer: Completed after " << no_of_loops << " iterations with change delta = " << last_changes << ".";
+
+    }
+    
+    /// Perfom the EM training, until the changes are below the given threshold
+    void train(double threshold) {
+        double last_changes = std::numeric_limits<double>::max();
+        bool cleaned = false;
+        unsigned iterations = 0;
+        
+        while (last_changes > threshold) {
+            ++iterations;
+            last_changes = train();
+            // clean the grammar only after the first iteration.
+            if (!cleaned) {
+                grammar.clean_grammar();
+                cleaned = true;
+            }
+        }
+        VLOG(1) << "EMTrainer: Completed " << iterations << " iterations until changes were " << last_changes << " (<= " << threshold << ").";
     }
     
     ProbabilisticContextFreeGrammar& get_grammar() {
@@ -68,11 +92,12 @@ public:
 
     
 private:
-    void train() {
+    double train() {
         SymbolToProbMap symbol_prob;
         RuleToProbMap rule_prob;
         bool training_performed = false;
-        
+        double delta = 0; // measure the change in probability
+
         // First, iterate over all sentences and sum up the estimations for the rules and the sentences themselves.
         VLOG(2) << "EMTrainer: Estimate probabilities for " << no_of_sentences << " sentences.";
         for (SentencesVector::const_iterator cit = sentences.begin(); cit != sentences.end(); ++cit) {
@@ -121,16 +146,21 @@ private:
                 // Divide the summed up estimation for all rules by the summed up estimation of the symbol on the lhs.
                 if (summed_sentence_estimation > 0) { // avoid division by 0
                     new_prob = rule_prob[*rule] / summed_sentence_estimation;
+                    delta += std::abs(rule->get_prob() - new_prob);
                 } else {
                     new_prob = 0;
                 }
                 VLOG(5) << "EMTrainer: Updating probability for rule '" << *rule << "'. New: " << new_prob;
                 rule->set_probability(new_prob);
             }
+
 //            assert(grammar.is_valid_pcfg());
         } else {
             LOG(WARNING) << "EMTrainer: No estimation or maximization step performed. Please check, if the sentences in the training data can be parsed with the given grammar.";
         }
+        
+        VLOG(2) << "EMTrainer: Changes made in this iteration: " << delta;
+        return delta;
 
     }
 
@@ -230,6 +260,7 @@ private:
         }
     }
     
+    /// Nice way to print a symbol vector (sentences)
     std::string symbol_vector_to_string(const SymbolVector& vector) {
         std::stringstream sstream;
         
@@ -241,11 +272,11 @@ private:
     }
     
 private:
-    ProbabilisticContextFreeGrammar& grammar;
-    InsideOutsideCalculator* iocalc;
-    Signature<ExternalSymbol>& signature;
-    unsigned no_of_sentences;
-    SentencesVector sentences;
+    ProbabilisticContextFreeGrammar& grammar; ///< the grammar (obvious)
+    InsideOutsideCalculator* iocalc; ///< class to perfom the inside / outside estimation in
+    Signature<ExternalSymbol>& signature; ///< the signature
+    unsigned no_of_sentences; ///< the number of sentences in the corpus
+    SentencesVector sentences; ///< a vector of the sentences in the training corpus
     
 };
 

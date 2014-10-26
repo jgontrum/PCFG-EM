@@ -30,44 +30,6 @@ int main(int argc, const char * argv[])
 {
     _START_EASYLOGGINGPP(argc, argv);
     
-    
-
-
-//    
-//    Signature<std::string> s;
-//    PCFGRule r2("SBAR --> IN S [0.199324]", s);
-//    PCFGRule r1("VP --> VBG ADVP-MNR [0.000418936]", s);
-//    PCFGRule r3("VP --> ADVP-MNR VP|<VP-CC> [0.000558581]",s );
-//    
-//    std::vector<PCFGRule> vec;
-//    vec.push_back(r1);
-//    vec.push_back(r2);
-//    vec.push_back(r3);
-//
-//    std::sort(vec.begin(), vec.end());
-//
-//    for (std::vector<PCFGRule>::const_iterator cit = vec.begin(); cit != vec.end(); ++cit) {
-//        std::cerr << "|| " << *cit << "\n";
-//    }
-//    
-//    std::cout << r1 << "\n";
-//    std::cout << r2 << "\n";
-//    std::cout << r3 << "\n";
-//
-//    std::cout << "r1 < r1?" << (r1 < r1) << "\n";
-//    std::cout << "r1 < r2?" << (r1 < r2) << "\n";
-//    std::cout << "r1 < r3?" << (r1 < r3) << "\n";
-//
-//    std::cout << "r2 < r1?" << (r2 < r1) << "\n";
-//    std::cout << "r2 < r2?" << (r2 < r2) << "\n";
-//    std::cout << "r2 < r3?" << (r2 < r3) << "\n";
-//    
-//    std::cout << "r3 < r1?" << (r3 < r1) << "\n";
-//    std::cout << "r3 < r2?" << (r3 < r2) << "\n";
-//    std::cout << "r3 < r3?" << (r3 < r3) << "\n";
-
-
-    
     typedef boost::char_separator<char> CharSeparator;
     typedef boost::tokenizer<CharSeparator> Tokenizer;
     typedef std::vector<std::string> StringVector;
@@ -79,11 +41,12 @@ int main(int argc, const char * argv[])
     desc.add_options()
             ("help", "Print help messages")
             ("grammar,g", po::value<std::string>(), "Path to a PCFG.")
-            ("train,t", po::value<std::string>(), "Path to the training set with sentences seperated by newlines.")
+            ("corpus,c", po::value<std::string>(), "Path to the training set with sentences seperated by newlines.")
             ("save,s", po::value<std::string>(), "Path to save the altered grammar")
             ("out,o", "Output the grammar after the training.")
-            ("iterations,i", po::value<std::string>(), "Amount of training circles to perform. (Default: 3)")
-            ("vlevel,v=", po::value<std::string>(), "--v=2");
+            ("iterations,i", po::value<unsigned>(), "Amount of training circles to perform. (Default: 3)")
+            ("threshold,t", po::value<double>(), "The changes after the final iteration must be less equal to this value. Do not combine with  -i.")
+            ("vlevel,v=", po::value<std::string>(), "Define the verbose level (0-10). E.g.: --v=2");
             ;
 
     po::variables_map vm;
@@ -96,15 +59,15 @@ int main(int argc, const char * argv[])
     }
 
     if (vm.count("grammar")) {
-        if (vm.count("train")) { 
+        if (vm.count("corpus")) { 
             std::ifstream grammar_file;
             std::string grammar_arg = vm["grammar"].as<std::string>();
-//            std::cout << "'" << grammar_arg.substr(1, grammar_arg.size()) << "'\n" ;
+
             grammar_file.open(grammar_arg, std::ios::in);
             if (grammar_file) {
 
                 std::ifstream training_file;
-                std::string training_arg = vm["train"].as<std::string>();
+                std::string training_arg = vm["corpus"].as<std::string>();
                 training_file.open(training_arg, std::ios::in);
 
                 if (training_file) {
@@ -116,12 +79,11 @@ int main(int argc, const char * argv[])
                     
                     // Perform the actual training
                     if (vm.count("iterations")) {
-                        std::string iterations_arg = vm["iterations"].as<std::string>();
-                        unsigned it = boost::lexical_cast<unsigned>(iterations_arg);
-
-                        trainer.train(it);
+                        trainer.train(vm["iterations"].as<unsigned>());
+                    } else if (vm.count("threshold")) {
+                        trainer.train(vm["threshold"].as<double>());
                     } else {
-                        trainer.train(3); // default
+                        trainer.train(unsigned(3)); // default
                     }
 
                     // If wanted, print the new grammar to cout

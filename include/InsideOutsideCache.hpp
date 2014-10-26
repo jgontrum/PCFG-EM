@@ -19,7 +19,7 @@
 
 #include "easylogging++.h"
 
-
+/// Caches inside and outside values.
 class InsideOutsideCache {
 public:
     typedef ProbabilisticContextFreeGrammar::Symbol     Symbol;
@@ -45,22 +45,26 @@ public:
         return grammar;
     }
    
+    /// returns the inside probability or a nullpointer.
     inline const InsideOutsideProbability* const get_inside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end) const {
         CachedItem key = create_key(symbol, begin, end);
         CacheMap::const_iterator cit = inside_cache.find(key);
         return cit != inside_cache.end() ? &(cit->second) : nullptr;
     }
-
+    
+    /// returns the outside probability or a nullpointer.
     inline const InsideOutsideProbability* const get_outside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end) const {
         CachedItem key = create_key(symbol, begin, end);
         CacheMap::const_iterator cit = outside_cache.find(key);
         return cit != outside_cache.end() ? &(cit->second) : nullptr;
     }
-    
+
+    /// saves a calculated inside probability
     inline void store_inside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end, const InsideOutsideProbability& value) {
         inside_cache[create_key(symbol, begin, end)] = value;
     }
 
+    /// saves a calculated outside probability
     inline void store_outside_cache(const Symbol& symbol, const LengthType& begin, const LengthType& end, const InsideOutsideProbability& value) {
         outside_cache[create_key(symbol, begin, end)] = value;
     }

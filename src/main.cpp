@@ -86,7 +86,7 @@ int main(int argc, const char * argv[])
             ("vlevel,v=", po::value<std::string>(), "--v=2");
             ;
 
-    po::variables_map vm; 
+    po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm); 
 
@@ -110,7 +110,7 @@ int main(int argc, const char * argv[])
                 if (training_file) {
                     // Read in grammar
                     ProbabilisticContextFreeGrammar grammar(grammar_file);
-                    
+                                        
                     // Initialize the EMTrainer
                     EMTrainer trainer(grammar, training_file);
                     
@@ -132,7 +132,7 @@ int main(int argc, const char * argv[])
                     if (vm.count("save")) {
                         std::string save_arg = vm["save"].as<std::string>();
                         
-                        std::ofstream save_file(save_arg.substr(1, save_arg.size()));
+                        std::ofstream save_file(save_arg);
                         
                         if (save_file) {
                             save_file << grammar;

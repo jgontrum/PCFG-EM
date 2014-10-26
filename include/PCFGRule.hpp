@@ -18,6 +18,7 @@
 #include "easylogging++.h"
 #include "Signature.hpp"
 
+/// A weighted rule
 class PCFGRule {
 public: // Typedefs
     
@@ -30,7 +31,6 @@ public: // Typedefs
 
 public:
     /// The default constructor creates an invalid rule
-
     PCFGRule() : valid(false) {
         this->signature = 0; // setting a null pointer for the signature
     }
@@ -38,7 +38,6 @@ public:
     /// To create a valid rule, specify a string of the rule
     /// e.g. "S -> NP VP [1.0]" and a reference to a signature
     /// that translates the strings to numeric values.
-
     PCFGRule(const std::string& s, ExtSignature& signature) {
         this->signature = &signature;
         valid = parse_rule(s);
@@ -54,24 +53,27 @@ public:
     // Getter & Setter
     //////////////////////////////////////////////////////////////////////////
 
+    /// returns the lhs of this rule
     const ID& get_lhs() const {
         return lhs;
     }
 
+    /// returns the rhs of this rule
     const IDVector& get_rhs() const {
         return rhs;
     }
 
+    /// returns the probability of this rule
     const Probability& get_prob() const {
         return prob;
     }
-
+    
+    /// set the probability of this rule
     void set_probability(Probability new_prob) {
         prob = new_prob;
     }
 
-    /// returns the lenghth of the rhs
-
+    /// returns the length of the rhs
     const unsigned arity() const {
         return rhs.size();
     }
@@ -93,13 +95,11 @@ public:
     }
 
     /// a read-only index-operator to access the symbols on the rhs
-
     const ID operator[](unsigned pos) const {
         return (pos < rhs.size()) ? rhs[pos] : -1;
     }
 
     /// output-operator, prints the symbols as strings.
-
     friend std::ostream& operator<<(std::ostream& o, const PCFGRule& r) {
         if (r) {
             assert((r.signature)->containsID(r.get_lhs()));
@@ -117,11 +117,17 @@ public:
 
     }
 
-    // conversion operator, to allow statements like 'if (RULE) {...}'
-
+    /// conversion operator, to allow statements like 'if (RULE) {...}'
     operator bool() const {
         return valid;
     }
+    
+    struct compare_by_probability {
+        inline bool operator()(const PCFGRule &  left, const PCFGRule & right) {
+            return left.get_prob() < right.get_prob();
+        }
+    };
+    
 
 private:
     // parses a string like "S -> NP VP [1.0]"

@@ -22,6 +22,7 @@
 
 #include "easylogging++.h"
 
+/// Represents a PCFG with a signature.
 class ProbabilisticContextFreeGrammar {
 public:
     typedef PCFGRule::ID                                Symbol;
@@ -73,9 +74,12 @@ public: // Functions
         return signature;
     }
 
+    /// Like the const version, but here you can alter the signature
     ExtSignature& get_signature() {
         return signature;
     }
+    
+    /// Return a set of all nonterminals
     const SymbolSet& get_nonterminals() const {
         return nonterminal_symbols;
     }
@@ -90,26 +94,39 @@ public: // Functions
         return nonterminal_symbols.find(sym) == nonterminal_symbols.end();
     }
 
+    /// Returns a range of rules for a given lhs symbol
     LHSRange rules_for(const Symbol& lhs) const {
         RuleIndex::const_iterator f_lhs = rule_index.find(lhs);
         return (f_lhs != rule_index.end()) ? f_lhs->second : LHSRange(end(), end());
     }
-
+    
+    /// Returns a range of rules (that can be changed) for a given lhs symbol
     LHSRangeMutable rules_for(const Symbol& lhs)  {
         RuleIndex::iterator f_lhs = rule_index.find(lhs);
         return (f_lhs != rule_index.end()) ? f_lhs->second : LHSRangeMutable(end(), end());
     }
 
+    /*
+     * Returns a const vector of const pointers to rules, that have the given symbol as the first symbol on their rhs.
+     * Example: [A -> B C] and [X -> B Y] will be returned when this method is called with 'B' as an argument.
+     * This function and its sister function are useful while computing an EM-Algorithm.
+     */
     inline const RulePointerVector * const get_rules_for_first_symbol(const Symbol& first_symbol) const {
         SymbolToRuleVectorMap::const_iterator cit = first_symbol_rules.find(first_symbol);
         return cit != first_symbol_rules.end() ? &(cit->second) : nullptr;
     }
 
+    /*
+     * Returns a const vector of const pointers to rules, that have the given symbol as the second symbol on their rhs.
+     * Example: [A -> C B] and [X -> Y B] will be returned when this method is called with 'B' as an argument.
+     * This function and its sister function are useful while computing an EM-Algorithm.
+     */
     inline const RulePointerVector * const get_rules_for_second_symbol(const Symbol& second_symbol) const {
         SymbolToRuleVectorMap::const_iterator cit = second_symbol_rules.find(second_symbol);
         return cit != second_symbol_rules.end() ? &(cit->second) : nullptr;
     }
 
+    
     iterator begin() {
         return productions.begin();
     }
@@ -126,7 +143,7 @@ public: // Functions
         return productions.end();
     }
 
-    /// True, if this grammar is in Chompsky-Normal Form
+    /// True, if this grammar is in Chomsky-Normal Form
     bool is_in_cnf() const {
         // iterate over all rules...
         for (const_iterator r = begin(); r != end(); ++r) {
@@ -159,6 +176,77 @@ public: // Functions
         return true;
     }
     
+
+    
+    /*
+     * Removes all rules, that have probability=0
+     */
+    void clean_grammar() {
+        VLOG(4) << "PCFG: Cleaning - Starting cleaning process...";
+        VLOG(5) << "PCFG: Cleaning - Currently there are " << productions.size() << " rules in this grammar.";
+
+        unsigned no_rules_before_clean = productions.size();
+
+        // sort by their probability, so we have all rules with prob=0 right next to each other
+        std::sort(begin(), end(), PCFGRule::compare_by_probability());
+
+
+        // now find the range of rules with prob zero
+        const_iterator begin_of_zeros;
+        const_iterator end_of_zeros;
+        bool in_range = false;
+
+        for (const_iterator rule = begin(); rule != end(); ++rule) {
+            //            std::cout << *rule << "\n";
+            if (rule->get_prob() == 0) {
+                if (!in_range) {
+                    in_range = true;
+                    begin_of_zeros = rule;
+                }
+            } else {
+                if (in_range) {
+                    end_of_zeros = rule;
+                    break; // no need to continue, we have found all the rules we want to remove
+                }
+            }
+        }
+
+        // finally, remove all zero rules!
+        productions.erase(begin_of_zeros, end_of_zeros);
+
+        // sort in the right order again
+        std::sort(begin(), end());
+
+        // clear variables;
+        rule_index.clear();
+        first_symbol_rules.clear();
+        second_symbol_rules.clear();
+        nonterminal_symbols.clear();
+        vocabulary.clear();
+
+        // Rebuild structures if anything was changed.
+        VLOG(6) << "PCFG: Cleaning - Rebuilding the rule index...";
+        build_rule_index();
+        VLOG(6) << "PCFG: Cleaning - Finished rebuilding the rule index!";
+
+        VLOG(6) << "PCFG: Cleaning - Rebuilding rhs vectors...";
+        build_rule_rhs_index();
+        VLOG(6) << "PCFG: Cleaning - Finished rebuilding rhs vectors!";
+
+
+        assert(nonterminal_symbols.find(get_start_symbol()) != nonterminal_symbols.end());
+
+        VLOG(4) << "PCFG: Cleaning - Finished cleaning process! " << no_rules_before_clean - productions.size() << " rules have been deleted!";
+
+    }
+
+    
+    /*
+     * Checks, if this grammar is a valid PCFG, so that the probabilities of all rules
+     * that share the same lhs-symbol sum up to one.
+     * Is that not the case, the rules will receive the probability 
+     * P(rule) / sum(P(rules)) [for all rules with the same lhs symbol].
+     */
     void normalize_probabilities() {
         // Iterate over all rules and sum up the probability for all rules for a lhs symbol.
         // Also count, how many rules belong to a lhs symbol.
@@ -175,11 +263,11 @@ public: // Functions
             }
                         
             // If the summed up probability is not exactly 1, normalize the probability for all 
-            // rules for this lhs symbol. We assign them the probability 1/counter.
+            // rules for this lhs symbol. We assign them the probability p / current_probability.
             if ((int)(current_probability*1000000+0.5)/1000000.0 != 1) { // ceil
                 LOG(WARNING) << "PCFG: Probabilities for the symbol '" << get_signature().resolve_id(nt) << "' sum up to '" << current_probability << "' and are therefore illegal. Belonging rules will be normalized.";;
                 for (iterator rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) {
-                    rule->set_probability(1.0/counter);
+                    rule->set_probability(rule->get_prob()/current_probability);
                 }
             }
         }
@@ -236,19 +324,12 @@ private:
         // save it in the rule vector
         productions.push_back(r);
         RuleVector::iterator it = productions.begin();
-        // add the lhs to the nonterminals and the vocabulary
-        nonterminal_symbols.insert(r.get_lhs());
-        vocabulary.insert(r.get_lhs());
-        
-        // add all symbols from the rhs to the nonterminals.
-        vocabulary.insert(r.get_rhs().begin(), r.get_rhs().end());
     }
 
     /// Define the start symbol by a given symbol ID
     void set_start_symbol(const Symbol& start) {
         if (signature.containsID(start)) {
             start_symbol = start;
-            nonterminal_symbols.insert(start);
         } else {
             LOG(WARNING) << "PCFG: The start symbol could not be set, because it is illegal. "
                     "It must be contained in the signature of the grammar.";
@@ -259,21 +340,25 @@ private:
  
     void build_rule_index() {
         if (!productions.empty()) {
-            // Erstes LHS-Symbol im Regelvektor bestimmen
             Symbol current_lhs = begin()->get_lhs();
-            // Anfang des Bereichs f�r dieses Symbol
             iterator left = begin();
             for (iterator r = begin(); r != end(); ++r) {
+                // Insert nonterminals and vocabulary
+                nonterminal_symbols.insert(r->get_lhs());
+                vocabulary.insert(r->get_lhs());
+                vocabulary.insert(r->get_rhs().begin(), r->get_rhs().end());
+                
+                
                 if (r->get_lhs() != current_lhs) {
-                    // Nichtterminalbereich ist hier zu Ende
+
                     rule_index[current_lhs] = LHSRangeMutable(left, r);
-                    // current_lhs ist nun das neue LHS-Symbol
+
                     current_lhs = r->get_lhs();
-                    // r wird nun zum Anfang des neuen Bereichs
+
                     left = r;
                 }
-            } // for
-            // Der letzte Bereich muss noch eingetragen werden
+            }
+
             rule_index[current_lhs] = LHSRangeMutable(left, end());
         }
     }
@@ -293,7 +378,7 @@ private:
             }
         }
     }
-
+   
     /// Print the grammar to a given stream
     void print(std::ostream& o) const {
         // startsymbol
@@ -301,7 +386,10 @@ private:
 
         // rules
         for (const_iterator r = begin(); r != end(); ++r) {
-            o << *r << "\n";
+            if (r->get_prob() > 0) {
+                o << *r << "\n";
+
+            }
         }
     }
 
@@ -316,16 +404,16 @@ private:
     }
 
 
-private: // Instanzvariablen
-    Symbol start_symbol; ///< Startsymbol
-    SymbolSet nonterminal_symbols; ///< Nichtterminale
-    SymbolSet vocabulary; ///< Terminale U Nichtterminale
-    RuleVector productions; ///< Produktionsregeln
-    RuleIndex rule_index; ///< Indexstruktur zum Auffinden von Regeln
+private:
+    Symbol start_symbol; ///< startsymbol
+    SymbolSet nonterminal_symbols; ///< nonterminals
+    SymbolSet vocabulary; ///< terminals and nonterminals
+    RuleVector productions; ///< rules
+    RuleIndex rule_index; ///< index of the rules
     ExtSignature signature; ///< The signature to translate the symbol IDs of the rules to strings
 
-    SymbolToRuleVectorMap first_symbol_rules;
-    SymbolToRuleVectorMap second_symbol_rules;
-}; // ContextFreeGrammar
+    SymbolToRuleVectorMap first_symbol_rules; ///< Maps a symbol to all rules, where it appeares as the first symbol on the rhs.
+    SymbolToRuleVectorMap second_symbol_rules; ///< Maps a symbol to all rules, where it appeares as the second symbol on the rhs.
+}; 
 
 #endif

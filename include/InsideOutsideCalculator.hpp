@@ -19,6 +19,7 @@
 
 #include "easylogging++.h"
 
+/// Calculates inside and outside values for a sentence.
 class InsideOutsideCalculator {
 public:
     typedef InsideOutsideCache::InsideOutsideProbability        InsideOutsideProbability;
@@ -43,6 +44,7 @@ public:
         input = nullptr;
     }
 
+    /// Sets the new sentence. You have to do this before starting a calculation!
     void set_sentence(const SymbolVector * new_sentence) {
         input = new_sentence;
         if (new_sentence != nullptr) {
@@ -50,10 +52,12 @@ public:
         }
     }
     
-    /// Calculates the inside probability, that the given symbol produces a (part)
-    /// of a sentence from a specified beginning position to an end position.
-    /// See 'Foundations of Statistical Natural Language pProcessing' by Manning & Schuetze, pp.392 
-    /// for further details about this implementation.
+    /*
+     *  Calculates the inside probability, that the given symbol produces a (part)
+     *  of a sentence from a specified beginning position to an end position.
+     *  See 'Foundations of Statistical Natural Language Processing' by Manning & Schuetze, pp.392 
+     *  for further details about this implementation.
+    */ 
     InsideOutsideProbability calculate_inside(const Symbol& symbol, const LengthType& begin, const LengthType& end) {
         VLOG(7) << "InsideOutsideCalculator: Calculating Inside Probability: '" << signature.resolve_id(symbol) << "'(" << (unsigned)begin << ", " << (unsigned)end << ")";
         if (input != nullptr) {
@@ -118,34 +122,39 @@ public:
             return 0;
         }
     }
-    
-    
-    InsideOutsideProbability calculate_outside(const Symbol& symbol, const LengthType& begin, const LengthType& end) {
-        VLOG(7) << "InsideOutsideCalculator: Calculating Outside Probability: '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+
+    /*
+     *  Calculates the outside probability of a given symbol and a number of symbols to the
+     *  left and to the right.
+     *  See 'Foundations of Statistical Natural Language Processing' by Manning & Schuetze, pp.400 
+     *  for further details about this implementation.
+     */ 
+    InsideOutsideProbability calculate_outside(const Symbol& symbol, const LengthType& left, const LengthType& right) {
+        VLOG(7) << "InsideOutsideCalculator: Calculating Outside Probability: '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
         if (input != nullptr) {
-            assert(begin <= end);
-            assert(begin < sentence_len);
-            assert(end < sentence_len);
+            assert(left <= right);
+            assert(left < sentence_len);
+            assert(right < sentence_len);
 
             // Check the cache first
-            const InsideOutsideProbability * const cached_prob = cache.get_outside_cache(symbol, begin, end);
+            const InsideOutsideProbability * const cached_prob = cache.get_outside_cache(symbol, left, right);
             if (cached_prob != nullptr) {
-                VLOG(7) << "InsideOutsideCalculator: Using cached Outside Probability (" << *cached_prob << ") for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                VLOG(7) << "InsideOutsideCalculator: Using cached Outside Probability (" << *cached_prob << ") for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
                 return *cached_prob;
             }
 
             // Base case: begin is 0 and end the the length of the sentence (-1)
-            if (begin == 0 && end == sentence_len - 1) {
+            if (left == 0 && right == sentence_len - 1) {
                 // If the symbol is the start symbol, it covers the whole sentence, so we return 1
                 if (grammar.get_start_symbol() == symbol) {
-                    VLOG(7) << "InsideOutsideCalculator: Outside probability  is '1' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                    VLOG(7) << "InsideOutsideCalculator: Outside probability  is '1' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
-                    cache.store_outside_cache(symbol, begin, end, 1);
+                    cache.store_outside_cache(symbol, left, right, 1);
                     return 1;
                 } else { // If not, this case is not possible and we return 0
-                    VLOG(7) << "InsideOutsideCalculator: Outside probability  is '0' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                    VLOG(7) << "InsideOutsideCalculator: Outside probability  is '0' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
-                    cache.store_outside_cache(symbol, begin, end, 0);
+                    cache.store_outside_cache(symbol, left, right, 0);
                     return 0;
                 }
             }
@@ -166,10 +175,10 @@ public:
                     assert((*rule)->arity() == 2);
 
                     // Iterate over all possible divisions
-                    for (unsigned split = end + 1; split < sentence_len; ++split) {
-                        InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), begin, split); // Recursion
+                    for (unsigned split = right + 1; split < sentence_len; ++split) {
+                        InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), left, split); // Recursion
                         inner_score *= (*rule)->get_prob();
-                        inner_score *= calculate_inside((**rule)[1], end + 1, split); // inside for the other child symbol
+                        inner_score *= calculate_inside((**rule)[1], right + 1, split); // inside for the other child symbol
 
                         score_left += inner_score;
                     }
@@ -179,7 +188,7 @@ public:
             }
 
 
-            VLOG(7) << "InsideOutsideCalculator: Outside probability for the left child is '" << score_left << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+            VLOG(7) << "InsideOutsideCalculator: Outside probability for the left child is '" << score_left << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
 
             // Case 2: 'symbol' is the right Symbol on the rhs of a rule.
@@ -194,10 +203,10 @@ public:
 
                     assert((*rule)->arity() == 2);
                     // Iterate over all possible divisions
-                    for (unsigned split = 0; split < begin; ++split) {
-                        InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), split, end); // Recursion
+                    for (unsigned split = 0; split < left; ++split) {
+                        InsideOutsideProbability inner_score = calculate_outside((*rule)->get_lhs(), split, right); // Recursion
                         inner_score *= (*rule)->get_prob();
-                        inner_score *= calculate_inside((**rule)[0], split, begin - 1); // inside for the other child symbol
+                        inner_score *= calculate_inside((**rule)[0], split, left - 1); // inside for the other child symbol
 
                         score_left += inner_score;
                     }
@@ -206,11 +215,11 @@ public:
                 VLOG(7) << "InsideOutsideCalculator: No rule with '" << signature.resolve_id(symbol) << "' as second symbol on the rhs exists.'";
             }
 
-            VLOG(7) << "InsideOutsideCalculator: Outside probability for the right child is '" << score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+            VLOG(7) << "InsideOutsideCalculator: Outside probability for the right child is '" << score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
-            VLOG(7) << "InsideOutsideCalculator: Outside probability  is '" << score_left + score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+            VLOG(7) << "InsideOutsideCalculator: Outside probability  is '" << score_left + score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
-            cache.store_outside_cache(symbol, begin, end, score_left + score_right);
+            cache.store_outside_cache(symbol, left, right, score_left + score_right);
 
             return score_left + score_right;
         } else {
@@ -219,12 +228,12 @@ public:
         }
     }
     
-private:
-    const ProbabilisticContextFreeGrammar&                        grammar;
-    const ProbabilisticContextFreeGrammar::ExtSignature&          signature;
-    const SymbolVector *                                          input;
-    LengthType                                                    sentence_len;
-    InsideOutsideCache&                                           cache;
+private: 
+    const ProbabilisticContextFreeGrammar&                        grammar;      ///< Gramamr to lookup the rules
+    const ProbabilisticContextFreeGrammar::ExtSignature&          signature;    ///< Signarue for prettier verbose messages
+    const SymbolVector *                                          input;        ///< The current sentence
+    LengthType                                                    sentence_len; ///< The length of the current sentence
+    InsideOutsideCache&                                           cache;        ///< A cache to store all calculated values
 };
 
 #endif	/* INSIDEOUTSIDECALCULATOR_HPP */

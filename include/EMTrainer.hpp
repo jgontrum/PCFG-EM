@@ -21,6 +21,7 @@
 
 #include "../include/easylogging++.h"
 
+/// Learns the probability distribution of a grammar based on raw, not annotated sentences.
 class EMTrainer {
 public:
     typedef ProbabilisticContextFreeGrammar::Probability    Probability;
@@ -46,8 +47,17 @@ public:
     }
     
     void train(unsigned no_of_loops) {
+        bool cleaned = false;
+        
         for (unsigned i = 0; i < no_of_loops; ++i) {
             train();
+            
+            // clean the grammar only after the first iteration.
+            if (!cleaned) {
+                grammar.clean_grammar();
+                cleaned = true;
+            }
+
         }
     }
     
@@ -111,7 +121,6 @@ private:
                 // Divide the summed up estimation for all rules by the summed up estimation of the symbol on the lhs.
                 if (summed_sentence_estimation > 0) { // avoid division by 0
                     new_prob = rule_prob[*rule] / summed_sentence_estimation;
-                    std::cerr << "New Value for " << *rule << " : " << new_prob << "\n";
                 } else {
                     new_prob = 0;
                 }

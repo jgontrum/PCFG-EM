@@ -290,23 +290,26 @@ private:
             std::getline(grm_in, line);
             if (!line.empty() && line[0] != '#') {
                 /// create a rule
-                PCFGRule r(line, signature);
-                if (first_rule && !r) { // this is the first line of the grammar and the creation of the rule failed. Setting this symbol as startsymbol
+                if (first_rule) { // this is the first line of the grammar 
                     first_rule = false;
                     VLOG(5) << "PCFG: Setting '" << line << "' as startsymbol.";
                     set_start_symbol(signature.add_symbol(line));
                     continue;
-                }
-                if (r) {
-                    add_rule(r);
-                    if (first_rule) {
-                        // Set the start symbol as the first symbol that we encounter.
-                        set_start_symbol(r.get_lhs());
-                        first_rule = false;
-                    }
                 } else {
-                    LOG(WARNING) << "PCFG: Rule in line " << line_no << " is ignored.";
+                    PCFGRule r(line, signature);
+                    
+                    if (r) {
+                        add_rule(r);
+                        if (first_rule) {
+                            // Set the start symbol as the first symbol that we encounter.
+                            set_start_symbol(r.get_lhs());
+                            first_rule = false;
+                        }
+                    } else {
+                        LOG(WARNING) << "PCFG: Rule in line " << line_no << " is ignored.";
+                    }
                 }
+
             }
             ++line_no;
         }

@@ -75,7 +75,7 @@ private:
         CachedItem buffer = symbol;     // assign the first 32bit in the buffer for the symbol
         buffer = (buffer << 8) | begin; // Now push the next 8bits in
         buffer = (buffer << 8) | end;   // and another 8bits.
-        VLOG(9) << "InsideOutsideCache: Converting <" << symbol << "," << (int)begin << "," << (int)end << "> to 64bit key: " << (std::bitset<64>) buffer;
+        VLOG(10) << "InsideOutsideCache: Converting <" << symbol << "," << (int)begin << "," << (int)end << "> to 64bit key: " << (std::bitset<64>) buffer;
         return buffer;
         
         /* Example:

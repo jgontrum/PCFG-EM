@@ -188,7 +188,7 @@ public: // Functions
         unsigned no_rules_before_clean = productions.size();
 
         // sort by their probability, so we have all rules with prob=0 right next to each other
-        std::sort(begin(), end(), PCFGRule::compare_by_probability());
+        std::sort(begin(), end(), PCFGRule::ProbabilityComparator());
 
 
         // now find the range of rules with prob zero
@@ -225,13 +225,13 @@ public: // Functions
         vocabulary.clear();
 
         // Rebuild structures if anything was changed.
-        VLOG(6) << "PCFG: Cleaning - Rebuilding the rule index...";
+        VLOG(5) << "PCFG: Cleaning - Rebuilding the rule index...";
         build_rule_index();
-        VLOG(6) << "PCFG: Cleaning - Finished rebuilding the rule index!";
+        VLOG(5) << "PCFG: Cleaning - Finished rebuilding the rule index!";
 
-        VLOG(6) << "PCFG: Cleaning - Rebuilding rhs vectors...";
+        VLOG(5) << "PCFG: Cleaning - Rebuilding rhs vectors...";
         build_rule_rhs_index();
-        VLOG(6) << "PCFG: Cleaning - Finished rebuilding rhs vectors!";
+        VLOG(5) << "PCFG: Cleaning - Finished rebuilding rhs vectors!";
 
 
         assert(nonterminal_symbols.find(get_start_symbol()) != nonterminal_symbols.end());

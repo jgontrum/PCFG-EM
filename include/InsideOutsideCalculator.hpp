@@ -70,7 +70,7 @@ public:
             // First, check if we have already calculated this value
             const InsideOutsideProbability * const cached_prob = cache.get_inside_cache(symbol, begin, end);
             if (cached_prob != nullptr) {
-                VLOG(7) << "InsideOutsideCalculator: Using cached Inside Probability (" << *cached_prob << ") for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                VLOG(8) << "InsideOutsideCalculator: Using cached Inside Probability (" << *cached_prob << ") for '" << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
 
                 return *cached_prob;
             }
@@ -82,14 +82,14 @@ public:
                     Symbol terminal_symbol = (*input)[begin];
                     for (PCFGCIt rule = rule_range.first; rule != rule_range.second; ++rule) {
                         if ((*rule)[0] == terminal_symbol && rule->arity() == 1) {
-                            VLOG(7) << "InsideOutsideCalculator: Inside Probability: is '" << rule->get_prob() << "' for " << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                            VLOG(8) << "InsideOutsideCalculator: Inside Probability: is '" << rule->get_prob() << "' for " << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
 
                             cache.store_inside_cache(symbol, begin, end, rule->get_prob());
                             return rule->get_prob();
                         }
                     }
                 } else {
-                    VLOG(7) << "InsideOutsideCalculator: Inside Probability: is '0' for " << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
+                    VLOG(8) << "InsideOutsideCalculator: Inside Probability: is '0' for " << signature.resolve_id(symbol) << "'(" << (unsigned) begin << ", " << (unsigned) end << ")";
 
                     cache.store_inside_cache(symbol, begin, end, 0);
                     return 0;
@@ -139,7 +139,7 @@ public:
             // Check the cache first
             const InsideOutsideProbability * const cached_prob = cache.get_outside_cache(symbol, left, right);
             if (cached_prob != nullptr) {
-                VLOG(7) << "InsideOutsideCalculator: Using cached Outside Probability (" << *cached_prob << ") for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
+                VLOG(8) << "InsideOutsideCalculator: Using cached Outside Probability (" << *cached_prob << ") for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
                 return *cached_prob;
             }
 
@@ -147,12 +147,12 @@ public:
             if (left == 0 && right == sentence_len - 1) {
                 // If the symbol is the start symbol, it covers the whole sentence, so we return 1
                 if (grammar.get_start_symbol() == symbol) {
-                    VLOG(7) << "InsideOutsideCalculator: Outside probability  is '1' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
+                    VLOG(8) << "InsideOutsideCalculator: Outside probability  is '1' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
                     cache.store_outside_cache(symbol, left, right, 1);
                     return 1;
                 } else { // If not, this case is not possible and we return 0
-                    VLOG(7) << "InsideOutsideCalculator: Outside probability  is '0' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
+                    VLOG(8) << "InsideOutsideCalculator: Outside probability  is '0' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
                     cache.store_outside_cache(symbol, left, right, 0);
                     return 0;
@@ -170,7 +170,7 @@ public:
                 for (RulePointerVector::const_iterator rule = rules->begin();
                         rule != rules->end();
                         ++rule) {
-                    VLOG(7) << "InsideOutsideCalculator: Current rule: '" << **rule << "' with '" << signature.resolve_id(symbol) << "' as first symbol on the rhs.'";
+                    VLOG(8) << "InsideOutsideCalculator: Current rule: '" << **rule << "' with '" << signature.resolve_id(symbol) << "' as first symbol on the rhs.'";
 
                     assert((*rule)->arity() == 2);
 
@@ -184,11 +184,11 @@ public:
                     }
                 }
             } else {
-                VLOG(7) << "InsideOutsideCalculator: No rule with '" << signature.resolve_id(symbol) << "' as first symbol on the rhs exists.'";
+                VLOG(8) << "InsideOutsideCalculator: No rule with '" << signature.resolve_id(symbol) << "' as first symbol on the rhs exists.'";
             }
 
 
-            VLOG(7) << "InsideOutsideCalculator: Outside probability for the left child is '" << score_left << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
+            VLOG(8) << "InsideOutsideCalculator: Outside probability for the left child is '" << score_left << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
 
             // Case 2: 'symbol' is the right Symbol on the rhs of a rule.
@@ -199,7 +199,7 @@ public:
                 for (RulePointerVector::const_iterator rule = rules->begin();
                         rule != rules->end();
                         ++rule) {
-                    VLOG(7) << "InsideOutsideCalculator: Current rule: '" << **rule << "' with '" << signature.resolve_id(symbol) << "' as second symbol on the rhs.'";
+                    VLOG(8) << "InsideOutsideCalculator: Current rule: '" << **rule << "' with '" << signature.resolve_id(symbol) << "' as second symbol on the rhs.'";
 
                     assert((*rule)->arity() == 2);
                     // Iterate over all possible divisions
@@ -212,10 +212,10 @@ public:
                     }
                 }
             } else {
-                VLOG(7) << "InsideOutsideCalculator: No rule with '" << signature.resolve_id(symbol) << "' as second symbol on the rhs exists.'";
+                VLOG(8) << "InsideOutsideCalculator: No rule with '" << signature.resolve_id(symbol) << "' as second symbol on the rhs exists.'";
             }
 
-            VLOG(7) << "InsideOutsideCalculator: Outside probability for the right child is '" << score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
+            VLOG(8) << "InsideOutsideCalculator: Outside probability for the right child is '" << score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 
             VLOG(7) << "InsideOutsideCalculator: Outside probability  is '" << score_left + score_right << "' for '" << signature.resolve_id(symbol) << "'(" << (unsigned) left << ", " << (unsigned) right << ")";
 

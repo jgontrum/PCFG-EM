@@ -85,11 +85,6 @@ public:
         VLOG(1) << "EMTrainer: Completed " << iterations << " iterations until changes were " << last_changes << " (<= " << threshold << ").";
     }
     
-    ProbabilisticContextFreeGrammar& get_grammar() {
-        return grammar;
-    }
-    
-
     
 private:
     double train() {
@@ -150,7 +145,7 @@ private:
                 } else {
                     new_prob = 0;
                 }
-                VLOG(5) << "EMTrainer: Updating probability for rule '" << *rule << "'. New: " << new_prob;
+                VLOG(9) << "EMTrainer: Updating probability for rule '" << *rule << "'. New: " << new_prob;
                 rule->set_probability(new_prob);
             }
 
@@ -234,11 +229,11 @@ private:
     void read_in(std::istream& corpus) {
         std::string line;
         unsigned line_no = 1;
-        VLOG(3) << "EMTrainer: Reading in the training corpus...";
+        VLOG(4) << "EMTrainer: Reading in the training corpus...";
         while (corpus.good()) {
             std::getline(corpus, line);
             if (!line.empty()) {
-                VLOG(5) << "EMTRainer: Reading in line " << line_no << ": '" << line << "'.";
+                VLOG(6) << "EMTrainer: Reading in line " << line_no << ": '" << line << "'.";
                 // Tokenize line
                 Tokenizer tokens(line, CharSeparator("\t "));
                 SymbolVector tokens_id;;

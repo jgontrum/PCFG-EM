@@ -48,7 +48,7 @@ public:
             return result;
         } else {
             // add symbol to signature
-            VLOG(7) << "Signature: New mapping added: '" << new_symbol << "' <-> " << number_of_entries();
+            VLOG(9) << "Signature: New mapping added: '" << new_symbol << "' <-> " << number_of_entries();
             external_to_internal[new_symbol] = number_of_entries();
             internal_to_external.push_back(new_symbol);
             return number_of_entries() - 1;

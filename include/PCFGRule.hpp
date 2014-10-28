@@ -42,7 +42,7 @@ public:
         this->signature = &signature;
         valid = parse_rule(s);
         if (valid) {
-            VLOG(7) << "PCFGRule: Rule for '" << *this << "' successfully created.";
+            VLOG(9) << "PCFGRule: Rule for '" << *this << "' successfully created.";
         } else {
             LOG(WARNING) << "PCFGRule: Rule for '" << *this << "' could not be created.";
         }
@@ -122,7 +122,7 @@ public:
         return valid;
     }
     
-    struct compare_by_probability {
+    struct ProbabilityComparator {
         inline bool operator()(const PCFGRule &  left, const PCFGRule & right) {
             return left.get_prob() < right.get_prob();
         }

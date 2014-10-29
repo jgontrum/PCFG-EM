@@ -43,7 +43,6 @@ private:
 public:
     EMTrainer(ProbabilisticContextFreeGrammar& pcfg, std::istream& corpus) : 
     grammar(pcfg), signature(pcfg.get_signature()) {
-        iocalc = nullptr;
         no_of_sentences = 0;
         read_in(corpus);
     }
@@ -99,9 +98,8 @@ private:
             if (cit->second != false) {
                 training_performed = true; // in case there are no valid sentences in the training data
                 InsideOutsideCache cache(grammar);
-                InsideOutsideCalculator iocalc(cache);
+                InsideOutsideCalculator iocalc(cache, &(cit->first));
 
-                iocalc.set_sentence(&(cit->first));
                 unsigned len = (cit->first).size();
                 VLOG(3) << "EMTrainer: Current sentence: '" << symbol_vector_to_string(cit->first) << "'";
                 
@@ -268,7 +266,6 @@ private:
     
 private:
     ProbabilisticContextFreeGrammar& grammar; ///< the grammar (obvious)
-    InsideOutsideCalculator* iocalc; ///< class to perfom the inside / outside estimation in
     Signature<ExternalSymbol>& signature; ///< the signature
     unsigned no_of_sentences; ///< the number of sentences in the corpus
     SentencesVector sentences; ///< a vector of the sentences in the training corpus

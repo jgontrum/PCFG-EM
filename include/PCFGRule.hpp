@@ -156,7 +156,7 @@ private:
                     LOG(WARNING) << "PCFGRule: missing probability in '" << s << "' Setting value to 1. This may lead to an invalid PCFG.";
                     prob = 1;
                 } else {
-                    prob = boost::lexical_cast<double>(prob_vector[0]); // TODO assert something here
+                    prob = boost::lexical_cast<double>(prob_vector[0]);
                     vtokens.pop_back(); // remove the latest token (the probability)
                 }
                 // transform the strings to ints using the signature

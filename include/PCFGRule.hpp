@@ -21,7 +21,6 @@
 /// A weighted rule
 class PCFGRule {
 public: // Typedefs
-    
     typedef std::string ExternalSymbol;
     typedef Signature<ExternalSymbol> ExtSignature;
     typedef ExtSignature::ID ID;

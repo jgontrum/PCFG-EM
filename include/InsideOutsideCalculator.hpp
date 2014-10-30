@@ -57,7 +57,6 @@ public:
         assert(begin < sentence_len);
         assert(end < sentence_len);
 
-        PCFGRange rule_range = grammar.rules_for(symbol);
 
         // First, check if we have already calculated this value
         const InsideOutsideProbability * const cached_prob = cache.get_inside_cache(symbol, begin, end);
@@ -67,6 +66,9 @@ public:
             return *cached_prob;
         }
 
+        PCFGRange rule_range = grammar.rules_for(symbol);
+
+        
         // Base case: The length of the span is 0
         if (begin == end) {
             // Check, that this is a valid request

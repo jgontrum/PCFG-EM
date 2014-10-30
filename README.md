@@ -128,5 +128,31 @@ b : 0000000000000000000000000000000000000000111000100100000000111100
 This way, the three variables have been combined to one unique key without hashing (althoug it will be cashed again by the map). In the 'Optimization & Benchmark' section I talk about the performace of this procedure.
 
 ### EMTrainer
+This class performs the actual training of the PCFG. It is initialized with a reference to an istram to a training corpus, wich is read in line by line, tokenized and translated to symbols of the signature of the PCFG. If a sentence contains an unknown symbol, the sentence will be ignored becaue it cannot get estimates > 0.
+The trainer can be run in two different modes: Either with a given number of iterations or a threshold. In the first mode, the training algorithm is simply called as often as specified. The other mode perfomes the training, until the changes in the PCFG are equal to or below the threshold. The changes are calculated by summing up the differences in the probabilities of all rules in the grammar.
+This value is the output if the private *train()* method wich performes the training by calculating the inside probability of each sentence in the corpus and estimating the symbol expectation for all nonterminals for each sentence. This is rather straight forward implementation of the algorithm that can be found in 'Foundations of Statistical Natural Language Processing' by Mannoing and Schütze.
+
+## Optimizaton & Benchmarks
+After using a profiler to ensure that the program contains neither memory leaks nor extemly slow functions, I found out that the biggest performance bottleneck is the read access of the cache.
+
+### Caching
+This cache itself extremely boosts the speed of the calculation. As an example, I am performing a training with only one iteration for a very small sentence (four tokens) and a grammar extracted from section 00 of the Wall Street Journal (7466 rules).
+Even in this very small example, there were overall 677579 calls for calculating inside or outside estimates. With the help of a cache, 92% of this calculations have been prevented by a lookup in the cache (622079 read accesses). Of course, this ratio increases with the number of iterations.
+
+To improve the overall performance, there are two possibilities: one is to increase the speed of the cache itself an the other is to prevent redundant calculations in the first place.
+
+### Removing rules with zero probability
+Following the second approach first, all redundant rules will be removed from the grammar after the first iteration. The idea is, that if a probability of zero is assigned to a rule after the first training, it means that it has never been used in the given corpus. Since the inside-outside algorithm aims to improve the proability of all rules based on the sentences of a corpus, this zero probability rules will not play a role in further iterations, so they can be removed.
+The smaller the corpus, the higher is the percentage of redundant rules. In case of the small four-token sentence mentioned before, there have been 677579 calculations in the first iteration but only 4646 after removing the rules (0.001%).
+In cases with more and longer senctences, the speed of the program increased up to 50%.
+
+### Optimizing the cache
+Eventhough minimizing the number of accesses to the cache improbes the performance, it is crucial to optimize the cache itself. 
+The cache uses a triples of a symbol and two integers as keys. Creating two pair objects for each lookup in the cache can be very time consuming. To get rid of this, the bits of the variables will be concatenated into one 64 bit variable, that then will be used as the key in the hashmap (see InsideOutsideCache for more details). Of course it is still neccecary to compute the hashvalue of the key, but by avoiding the creation if the pair objects, the programm runs about 20% faster.
+
+Using a 32bit variable instead of 64bit one had no measurable effect. 
+
+### Different HashMap implementations
+This programm only uses the unordered map from std. Using other implementations like boost decreased the speed by about 30%.
 
 

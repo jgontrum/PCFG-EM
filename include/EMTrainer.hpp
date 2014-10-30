@@ -20,6 +20,7 @@
 #include <sstream>
 #include <cmath>
 #include <limits>       // std::numeric_limits
+#include <cmath>
 
 #include "../include/easylogging++.h"
 
@@ -62,7 +63,7 @@ public:
             }
         }
 
-        VLOG(1) << "EMTrainer: Completed after " << no_of_loops << " iterations with change delta = " << last_changes << ".";
+        VLOG(1) << "EMTrainer: Completed after " << no_of_loops << " iterations with a RMSE = " << last_changes << ".";
 
     }
     
@@ -81,7 +82,7 @@ public:
                 cleaned = true;
             }
         }
-        VLOG(1) << "EMTrainer: Completed " << iterations << " iterations until changes were " << last_changes << " (<= " << threshold << ").";
+        VLOG(1) << "EMTrainer: Completed " << iterations << " iterations until RMSE was " << last_changes << " (<= " << threshold << ").";
     }
     
     
@@ -90,7 +91,9 @@ private:
         SymbolToProbMap symbol_prob;
         RuleToProbMap rule_prob;
         bool training_performed = false;
-        double delta = 0; // measure the change in probability
+        
+        double rmsq_sum = 0;
+        unsigned rmsq_n = 0;
 
         // First, iterate over all sentences and sum up the estimations for the rules and the sentences themselves.
         VLOG(2) << "EMTrainer: Estimate probabilities for " << no_of_sentences << " sentences.";
@@ -139,7 +142,8 @@ private:
                 // Divide the summed up estimation for all rules by the summed up estimation of the symbol on the lhs.
                 if (summed_sentence_estimation > 0) { // avoid division by 0
                     new_prob = rule_prob[*rule] / summed_sentence_estimation;
-                    delta += std::abs(rule->get_prob() - new_prob);
+                    rmsq_sum += std::pow(rule->get_prob() - new_prob, 2);
+                    ++rmsq_n;
                 } else {
                     new_prob = 0;
                 }
@@ -152,8 +156,9 @@ private:
             LOG(WARNING) << "EMTrainer: No estimation or maximization step performed. Please check, if the sentences in the training data can be parsed with the given grammar.";
         }
         
-        VLOG(2) << "EMTrainer: Changes made in this iteration: " << delta;
-        return delta;
+        
+        VLOG(2) << "EMTrainer: Root mean square error compared to the last iteration: " << std::sqrt(rmsq_sum/rmsq_n);
+        return std::sqrt(rmsq_sum/rmsq_n);
 
     }
 
@@ -223,7 +228,7 @@ private:
         VLOG(6) << "EMTrainer: Estimation for the rule '" << rule << "': " << score;
         return score;
     }
-
+    
     void read_in(std::istream& corpus) {
         std::string line;
         unsigned line_no = 1;
@@ -269,7 +274,6 @@ private:
     Signature<ExternalSymbol>& signature; ///< the signature
     unsigned no_of_sentences; ///< the number of sentences in the corpus
     SentencesVector sentences; ///< a vector of the sentences in the training corpus
-    
 };
 
 #endif	/* EMTRAINER_HPP */

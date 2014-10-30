@@ -7,7 +7,6 @@
 #ifndef __PROBABILISTICCONTEXTFREEGRAMMAR_HPP__
 #define __PROBABILISTICCONTEXTFREEGRAMMAR_HPP__
 
-#include <map>
 #include <vector>
 #include <string>
 #include <iostream>
@@ -49,7 +48,7 @@ public:
 
 
 private:
-    typedef std::map<Symbol, LHSRangeMutable> RuleIndex;
+    typedef boost::unordered_map<Symbol, LHSRangeMutable> RuleIndex;
 
 public: // Functions  
 
@@ -363,6 +362,9 @@ private:
             }
 
             rule_index[current_lhs] = LHSRangeMutable(left, end());
+            
+            
+
         }
     }
     
@@ -401,7 +403,7 @@ private:
         for (SymbolSetIter s = syms.begin(); s != syms.end();) {
             o << *s;
             if (++s != syms.end()) o << ",";
-            else break; // Kein , nach letztem Element
+            else break;
         }
         o << "}";
     }

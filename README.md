@@ -4,17 +4,17 @@
 2. [Usage](#usage)
     1. [Command Line Options](#command-line-options)
     2. [Verbose levels](#verbose-levels)
-3. Class descriptions
-    1. ProbabilisticContextFreeGrammar
-    2. Signature
-    3. PCFGRule
-    4. InsideOutsideCalculator
-    5. InsideOutsideCache
-    6. EMTrainer
-4. Optimisation
-5. Benchmarks
-6. Current issues
-7. Acknowledgements
+3. [Class descriptions](#class-descriptions)
+    1. [ProbabilisticContextFreeGrammar](#probabilisticcontextfreegrammar)
+    2. [Signature](#signature)
+    3. [PCFGRule](#pcfgrule)
+    4. [InsideOutsideCalculator](#insideoutsidecalculator)
+    5. [InsideOutsideCache](#insideoutsidecache)
+    6. [EMTrainer](#emtrainer)
+4. [Optimisation](#optimisation)
+5. [Benchmarks](#benchmarks)
+6. [Current issues](#current-issues)
+7. [Acknowledgements](#acknowledgements)
 
 ## Abstract
 This program provides a basic implementation of the inside-outside algorithm, an expectation-maximization algorithm for probabilistic context free grammars. It learns the probability distribution for the production rules in an unsupervised way from a text corpus.
@@ -72,7 +72,7 @@ After each iteration the root mean square error of the new probability distribut
 
 **--v=**
 
-Specify the verbose level for detailed information about the program. See [Verbose Levels] for more details.
+Specify the verbose level for detailed information about the program. See [Verbose levels](#verbose-levels) for more details.
 
 ### Verbose Levels
 To learn more about the inner processes of this program, you can activate the verbose mode. To do so, choose the option *--v=* followed by an integer between 1 and 10 while 1 output only a few messages and 10 makes the program print all of them.
@@ -106,8 +106,8 @@ The rules within this grammar can be accessed either by a given left-hand side s
 Internally, the rules are stored in a sorted vector. Asserting that the grammar cannot be changed after the creation process, we then can define intervals for each left-hand side symbol that are values in a map with LHS symbols as values. 
 To avoid duplicating the rules for the inside-outside access approach, we crate a vector of constant pointers to rules for each case (symbol is the first / second symbol on the right-hand side of a rule).
 
-Another useful feature of this grammar is the ability to remove all rules with a probability of zero. To do this, it sorts the rules in the index by their probability score and deletes all rules with a zero probability in one step. After this, a reconstruction of the data structures needed for the access functions is required. Even though this sound very inefficient at first, it actually increases the speed of further training iterations (see 'Optimisation' for more details).
-
+Another useful feature of this grammar is the ability to remove all rules with a probability of zero. To do this, it sorts the rules in the index by their probability score and deletes all rules with a zero probability in one step. After this, a reconstruction of the data structures needed for the access functions is required. Even though this sound very inefficient at first, it actually increases the speed of further training iterations (see ['Optimisation'](#optimisation) for more details).
+Ich
 ### Signature
 To speed up the comparison of symbols, a signature is used to translate their string representations to integers and vice versa.
 
@@ -181,7 +181,7 @@ In cases with more and longer sentences, the speed of the program increased up t
 ### Optimising the cache
 Even though minimising the number of accesses to the cache improves the performance, it is crucial to optimise the cache itself. 
 
-The cache uses a triple of a symbol and two integers as keys. Creating two pair objects for each lookup in the cache can be very time consuming. To get rid of this, the bits of the variables will be concatenated into one 64 bit variable, that then will be used as the key in the hash map (see *InsideOutsideCache* for more details). Of course it is still necessary to compute the hash value of the key, but by avoiding the creation if the pair objects, the execution of the program becomes about 20% faster.
+The cache uses a triple of a symbol and two integers as keys. Creating two pair objects for each lookup in the cache can be very time consuming. To get rid of this, the bits of the variables will be concatenated into one 64 bit variable, that then will be used as the key in the hash map (see [*InsideOutsideCache*](#insideoutsidecache) for more details). Of course it is still necessary to compute the hash value of the key, but by avoiding the creation if the pair objects, the execution of the program becomes about 20% faster.
 
 *Note:* 
 Using a 32 bit variable instead of 64 bit one had no measurable effect. 
@@ -201,8 +201,30 @@ Note that the methods *calculate_outside* and *calculate_inside* are highly recu
 The used class for verbose logging is unfortunately consuming a lot of time. Logging can be disabled by defining the macro *\_ELPP\_DISABLE\_LOGS*, but even then its amount of time is about 13%. This is a tradeoff that had to be made to make the processes of this implementation more understandable since it is mostly written for understanding the algorithm and programming practice.
 
 ### Testrun
+Here is an example for the performance of the program:
 
+Grammar: Learned from section 00 of the Wall Street Journal, 7466 rules in CNF.
 
+Ten sentences, also from section 00 (to ensure, they can be parsed with the grammar):
+```
+NNP NNP _,_ CD NNS JJ _,_ MD VB DT NN IN DT JJ NN NNP CD _._
+NNP NNP VBZ NN IN NNP NNP _,_ DT NNP VBG NN _._
+NNP NNP _,_ CD NNS JJ CC JJ NN IN NNP NNP NNP NNP _,_ VBD VBN -NONE- DT JJ NN IN DT JJ JJ NN _._
+NNP NNP _,_ DT NN IN JJ JJ NNP NNP WDT -NONE- VBZ NNP NNS _,_ VBD VBG NN IN PRP$ NN NN NNS IN CD _._
+DT NNP NN VBD _,_ _``_ DT VBZ DT JJ NN _._
+PRP VBP VBG IN NNS IN IN NN VBD IN NN VBG DT JJ NNS _._
+EX VBZ DT NN IN PRP$ NNS RB _._ _''_
+DT NNP CC DT NNS WP -NONE- VBD DT NNS VBD JJ IN DT NN IN NNS IN DT NNP NNS _._
+_``_ PRP VBP DT JJ NN IN IN NNS VBP IN NN _,_ _''_ VBD -NONE- NNP NNP NNP IN NNP POS NNP NNP NNP _._
+NNP NNP VBD DT NN IN NNS IN DT NNP NNP NNP CC DT JJ NNS IN NNP NNP CC NNP NNP _._
+```
+
+Call parameters:
+```
+pcfgem --grammar examples/wsj00/wsj00_grammar.pcfg --corpus examples/wsj00/wsj00_first5.txt --iterations 3
+```
+
+Runtime on a MacBook Air: **4m 0.628s**
 
 ## Current issues
 As mentioned before, the bad performance of the program makes it virtually unusable for huge grammars and long sentences. 

@@ -4,7 +4,7 @@
 2. [Usage](#usage)
     1. [Command Line Options](#command-line-options)
     2. [Verbose levels](#verbose-levels)
-3. [Class descriptions](#class-descriptions)
+3. [Class description](#class-description)
     1. [ProbabilisticContextFreeGrammar](#probabilisticcontextfreegrammar)
     2. [Signature](#signature)
     3. [PCFGRule](#pcfgrule)

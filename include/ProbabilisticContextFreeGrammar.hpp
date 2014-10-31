@@ -195,7 +195,7 @@ public: // Functions
         iterator end_of_zeros;
         bool in_range = false;
 
-        for (const_iterator rule = begin(); rule != end(); ++rule) {
+        for (iterator rule = begin(); rule != end(); ++rule) {
             //            std::cout << *rule << "\n";
             if (rule->get_prob() == 0) {
                 if (!in_range) {

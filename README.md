@@ -1,9 +1,9 @@
 # EM-Algorithm for PCFGs 
 
-1. [Abstract]()
-2. [Usage]()
-    1. [Command Line Options]()
-    2. [Verbose levels]()
+1. [Abstract](#abstract)
+2. [Usage](#usage)
+    1. [Command Line Options](#command-line-options)
+    2. [Verbose levels](#verbose-levels)
 3. Class descriptions
     1. ProbabilisticContextFreeGrammar
     2. Signature

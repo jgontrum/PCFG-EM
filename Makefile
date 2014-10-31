@@ -1,7 +1,9 @@
 
-# Values for MacOSX & Linux
+# Values for Linux.
+# For OS X, please remove the -lboost_program_options option and specify the path 
+# to the boost library yourself.
 CPPCOMPILER         = clang++
-COMPILER_FLAGS      = -O2 -std=c++11 
+COMPILER_FLAGS      = -O2 -std=c++11 -lboost_program_options 
 DELETE              = rm -f
 DELETE_RECURSIVE    = rm -f -r
 EXECUTABLE          = -o bin/pcfgem
@@ -15,7 +17,10 @@ DOC_PATH            = doc/
 all : build documentation
 
 # - Creates the executable
-build : $(SRC_PATH)main.cpp $(HEADERFILES)
+build : bin/pcfgem 
+
+bin/pcfgem : $(SRC_PATH)main.cpp $(HEADERFILES)
+	mkdir bin
 	$(CPPCOMPILER) $(COMPILER_FLAGS) $(SRC_PATH)main.cpp $(EXECUTABLE)
 
 # - Headerfiles

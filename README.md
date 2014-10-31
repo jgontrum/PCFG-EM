@@ -1,9 +1,9 @@
 # EM-Algorithm for PCFGs 
 
-1. Abstract
-2. Usage
-    1. Command Line Options
-    2. Verbose levels
+1. [Abstract]()
+2. [Usage]()
+    1. [Command Line Options]()
+    2. [Verbose levels]()
 3. Class descriptions
     1. ProbabilisticContextFreeGrammar
     2. Signature
@@ -200,7 +200,9 @@ Note that the methods *calculate_outside* and *calculate_inside* are highly recu
 
 The used class for verbose logging is unfortunately consuming a lot of time. Logging can be disabled by defining the macro *\_ELPP\_DISABLE\_LOGS*, but even then its amount of time is about 13%. This is a tradeoff that had to be made to make the processes of this implementation more understandable since it is mostly written for understanding the algorithm and programming practice.
 
-### Testruns
+### Testrun
+
+
 
 ## Current issues
 As mentioned before, the bad performance of the program makes it virtually unusable for huge grammars and long sentences. 

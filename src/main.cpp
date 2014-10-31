@@ -3,8 +3,9 @@
 //  PCFG-EM
 //
 //  Created by Johannes Gontrum on 26/08/14.
-//  Copyright (c) 2014 Universität Potsdam. All rights reserved.
 //
+// #define _ELPP_DISABLE_LOGS
+#define NDEBUG
 
 #include <iostream>
 #include <string>
@@ -24,6 +25,7 @@
 #include "../include/EMTrainer.hpp"
 
 #include "../include/easylogging++.h"
+
 _INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, const char * argv[])

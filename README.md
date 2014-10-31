@@ -12,10 +12,6 @@
     5. InsideOutsideCache
     6. EMTrainer
 4. Optimisation
-    1. Caching
-    2. Removing rules with zero probability
-    3. Optimising the cache
-    4. Different hash map implementations
 5. Benchmarks
 6. Current issues
 7. Acknowledgements
@@ -110,7 +106,7 @@ The rules within this grammar can be accessed either by a given left-hand side s
 Internally, the rules are stored in a sorted vector. Asserting that the grammar cannot be changed after the creation process, we then can define intervals for each left-hand side symbol that are values in a map with LHS symbols as values. 
 To avoid duplicating the rules for the inside-outside access approach, we crate a vector of constant pointers to rules for each case (symbol is the first / second symbol on the right-hand side of a rule).
 
-Another useful feature of this grammar is the ability to remove all rules with a probability of zero. To do this, it sorts the rules in the index by their probability score and deletes all rules with a zero probability in one step. After this, a reconstruction of the data structures needed for the access functions is required. Even though this sound very inefficient at first, it actually increases the speed of further training iterations (see 'Optimisation & Benchmark' for more details).
+Another useful feature of this grammar is the ability to remove all rules with a probability of zero. To do this, it sorts the rules in the index by their probability score and deletes all rules with a zero probability in one step. After this, a reconstruction of the data structures needed for the access functions is required. Even though this sound very inefficient at first, it actually increases the speed of further training iterations (see 'Optimisation' for more details).
 
 ### Signature
 To speed up the comparison of symbols, a signature is used to translate their string representations to integers and vice versa.
@@ -158,7 +154,7 @@ Here is an example for the bit concatenation:
 > b : 0000000000000000000000000000000000000000111000100100000000111100
 >```
 
-This way, the three variables have been combined to one unique key without hashing (although it will be cashed again by the map). In the 'Optimisation & Benchmark' section, the performance of this procedure is described.
+This way, the three variables have been combined to one unique key without hashing (although it will be cashed again by the map). In the 'Optimisation' section, the performance of this procedure is described.
 
 ### EMTrainer
 This class performs the actual training of the PCFG. It is initialised with a reference to an *istream* to a training corpus, wich is read in line by line, tokenised and translated to symbols of the signature of the PCFG. If a sentence contains an unknown symbol, the sentence will be ignored because it cannot get estimates higher than zero.

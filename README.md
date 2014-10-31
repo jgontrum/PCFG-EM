@@ -19,32 +19,34 @@
 ## Abstract
 This program provides a basic implementation of the inside-outside algorithm, an expectation-maximization algorithm for probabilistic context free grammars. It learns the probability distribution for the production rules in an unsupervised way from a text corpus.
 
+Project on Github: [https://github.com/jgontrum/PCFG-EM](https://github.com/jgontrum/PCFG-EM)
+
 ## Usage
 ### Command line options
-```
-  --help                  Print help messages
-  -g [ --grammar ] arg    Path to a PCFG.
-  -c [ --corpus ] arg     Path to the training set with sentences separated by 
-                          newlines.
-  -s [ --save ] arg       Path to save the altered grammar
-  -o [ --out ]            Output the grammar after the training.
-  -i [ --iterations ] arg Amount of training circles to perform. (Default: 3)
-  -t [ --threshold ] arg  The changes after the final iteration must be less 
-                          equal to this value. Do not combine with  -i.
-  -v [ --vlevel ] arg     Define the verbose level (0-10). E.g.: --v=2
-```
+
+    --help                  Print help messages
+    -g [ --grammar ] arg    Path to a PCFG.
+    -c [ --corpus ] arg     Path to the training set with sentences separated by 
+                            newlines.
+    -s [ --save ] arg       Path to save the altered grammar
+    -o [ --out ]            Output the grammar after the training.
+    -i [ --iterations ] arg Amount of training circles to perform. (Default: 3)
+    -t [ --threshold ] arg  The changes after the final iteration must be less 
+                            equal to this value. Do not combine with  -i.
+    -v [ --vlevel ] arg     Define the verbose level (0-10). E.g.: --v=2
+
 **Required: --grammar, -g**
 
 The path to the grammar file, that should be optimised.
 The first line of the file contains only the start symbol of the grammar, while all other lines contain one rule: A left-hand side symbol, an arrow '*->*' and a right-hand side followed by a probability in brackets. Note that the probability is of course optional. If a probability value is given, it is used as the starting value for the training algorithm. The symbols on the right-hand side are separated by blanks. It is not needed to escape special characters as all symbols between two blanks are seen as one symbol.
 
 *Example for a grammar file:*
-```
-S
-S -> NP VP [1.0]
-NP -> Maria [1.0]
-VP -> schläft [1.0]
-```
+
+    S
+    S -> NP VP [1.0]
+    NP -> Maria [1.0]
+    VP -> schläft [1.0]
+
 **Required: --corpus, -c**
 
 The path to the corpus file. It must store one sentence per line and the sentences must be tokenized in a previous step so that all terminal symbols are separated by blanks.
@@ -136,23 +138,23 @@ Here is an example for the bit concatenation:
 > 
 > We set s = 123456, x = 3, y = 12.
 > Now the bit pattern for the variables are now as following:
-> ```
-> s : 1110001001000000
-> x : 0011
-> y : 1100
-```
+> 
+>     s : 1110001001000000
+>     x : 0011
+>     y : 1100
+
 > We copy the bits of s in the 64 bit buffer b:
-> ```
-> b : 0000000000000000000000000000000000000000000000001110001001000000
-> ```
+> 
+>     b : 0000000000000000000000000000000000000000000000001110001001000000
+>
 > Now we concatenate it with x:
-> ```
-> b : 0000000000000000000000000000000000000000000011100010010000000011
-> ```
+> 
+>     b : 0000000000000000000000000000000000000000000011100010010000000011
+> 
 > And y:
-> ```
-> b : 0000000000000000000000000000000000000000111000100100000000111100
->```
+> 
+>     b : 0000000000000000000000000000000000000000111000100100000000111100
+>
 
 This way, the three variables have been combined to one unique key without hashing (although it will be cashed again by the map). In the 'Optimisation' section, the performance of this procedure is described.
 
@@ -194,7 +196,7 @@ This program only uses the unordered map from the C++ Standard library. Using ot
 ### Profiler
 This is a screenshot of a time profiler of the final version of the program:
 
-![Screenshot of a profiler](doc/profiler.png)
+![Screenshot of a profiler](https://raw.githubusercontent.com/jgontrum/PCFG-EM/master/doc/profiler.png)
 
 Note that the methods *calculate_outside* and *calculate_inside* are highly recursive. It can be seen, that the program spends most of its time (99,9%) in the estimation of symbols and rules. These methods then again consume most time by accessing the cache (marked red) or in writing verbose messages (el::base). 
 
@@ -206,23 +208,21 @@ Here is an example for the performance of the program:
 Grammar: Learned from section 00 of the Wall Street Journal, 7466 rules in CNF.
 
 Ten sentences, also from section 00 (to ensure, they can be parsed with the grammar):
-```
-NNP NNP _,_ CD NNS JJ _,_ MD VB DT NN IN DT JJ NN NNP CD _._
-NNP NNP VBZ NN IN NNP NNP _,_ DT NNP VBG NN _._
-NNP NNP _,_ CD NNS JJ CC JJ NN IN NNP NNP NNP NNP _,_ VBD VBN -NONE- DT JJ NN IN DT JJ JJ NN _._
-NNP NNP _,_ DT NN IN JJ JJ NNP NNP WDT -NONE- VBZ NNP NNS _,_ VBD VBG NN IN PRP$ NN NN NNS IN CD _._
-DT NNP NN VBD _,_ _``_ DT VBZ DT JJ NN _._
-PRP VBP VBG IN NNS IN IN NN VBD IN NN VBG DT JJ NNS _._
-EX VBZ DT NN IN PRP$ NNS RB _._ _''_
-DT NNP CC DT NNS WP -NONE- VBD DT NNS VBD JJ IN DT NN IN NNS IN DT NNP NNS _._
-_``_ PRP VBP DT JJ NN IN IN NNS VBP IN NN _,_ _''_ VBD -NONE- NNP NNP NNP IN NNP POS NNP NNP NNP _._
-NNP NNP VBD DT NN IN NNS IN DT NNP NNP NNP CC DT JJ NNS IN NNP NNP CC NNP NNP _._
-```
+
+    NNP NNP _,_ CD NNS JJ _,_ MD VB DT NN IN DT JJ NN NNP CD _._
+    NNP NNP VBZ NN IN NNP NNP _,_ DT NNP VBG NN _. NP _,_ CD NNS JJ CC JJ NN IN NNP NNP NNP NNP _,_ VBD VBN -NONE- DT JJ NN IN DT JJ JJ NN _._
+    NNP NNP _,_ DT NN IN JJ JJ NNP NNP WDT -NONE- VBZ NNP NNS _,_ VBD VBG NN IN PRP$ NN NN NNS IN CD _._
+    DT NNP NN VBD _,_ _``_ DT VBZ DT JJ NN _._
+    PRP VBP VBG IN NNS IN IN NN VBD IN NN VBG DT JJ NNS _._
+    EX VBZ DT NN IN PRP$ NNS RB _._ _''_
+    DT NNP CC DT NNS WP -NONE- VBD DT NNS VBD JJ IN DT NN IN NNS IN DT NNP NNS _._
+    _``_ PRP VBP DT JJ NN IN IN NNS VBP IN NN _,_ _''_ VBD -NONE- NNP NNP NNP IN NNP POS NNP NNP NNP _._
+    NNP NNP VBD DT NN IN NNS IN DT NNP NNP NNP CC DT JJ NNS IN NNP NNP CC NNP NNP _._
+
 
 Call parameters:
-```
-pcfgem --grammar examples/wsj00/wsj00_grammar.pcfg --corpus examples/wsj00/wsj00_first5.txt --iterations 3
-```
+
+    pcfgem --grammar examples/wsj00/wsj00_grammar.pcfg --corpus examples/wsj00/wsj00_first5.txt --iterations 3
 
 Runtime on a MacBook Air: **4m 0.628s**
 

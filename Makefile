@@ -17,10 +17,12 @@ DOC_PATH            = doc/
 all : build documentation
 
 # - Creates the executable
-build : bin/pcfgem 
+build : bin/ bin/pcfgem  
+
+bin/ : 
+	mkdir bin/
 
 bin/pcfgem : $(SRC_PATH)main.cpp $(HEADERFILES)
-	mkdir bin
 	$(CPPCOMPILER) $(COMPILER_FLAGS) $(SRC_PATH)main.cpp $(EXECUTABLE)
 
 # - Headerfiles

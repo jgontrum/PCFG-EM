@@ -191,8 +191,8 @@ public: // Functions
 
 
         // now find the range of rules with prob zero
-        const_iterator begin_of_zeros;
-        const_iterator end_of_zeros;
+        iterator begin_of_zeros;
+        iterator end_of_zeros;
         bool in_range = false;
 
         for (const_iterator rule = begin(); rule != end(); ++rule) {

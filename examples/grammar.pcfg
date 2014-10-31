@@ -1,3 +1,4 @@
+S
 S --> NP VP [1.0]
 NP --> Hans [0.5]
 NP --> Maria [0.3]

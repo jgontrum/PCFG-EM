@@ -76,12 +76,14 @@ public:
         while (last_changes > threshold) {
             ++iterations;
             last_changes = train();
+            
             // clean the grammar only after the first iteration.
             if (!cleaned) {
                 grammar.clean_grammar();
                 cleaned = true;
             }
         }
+
         VLOG(1) << "EMTrainer: Completed " << iterations << " iterations until RMSE was " << last_changes << " (<= " << threshold << ").";
     }
     
@@ -112,21 +114,24 @@ private:
                 Probability inside_sentence = iocalc.calculate_inside(grammar.get_start_symbol(), 0, len-1);
                 VLOG(4) << "EMTrainer: Inside Probability for the whole sentence is " << inside_sentence;
                 
-                // Estimate how many times a nonterminal was is in the current sentence
-                for (Symbol nt : grammar.get_nonterminals()) {
-                    symbol_prob[nt] += estimate_symbol_expectation(nt, len, inside_sentence, iocalc);
-                }
-                
-                // Estimate how many times a rule is used.
-                for (ProbabilisticContextFreeGrammar::iterator rule = grammar.begin(); rule != grammar.end(); ++rule) {
-                    
-                    if (rule->arity() == 2) { // Normal rules -> (11.26), p. 400                        
-                        rule_prob[*rule] += estimate_rule_expectation((*rule), len, inside_sentence, iocalc);
-
-                    } else { // Preterminal rules -> (11.27), p. 400
-                        rule_prob[*rule] += estimate_terminal_rule_expectation((*rule), len, cit->first, inside_sentence, iocalc) ;
+                if (inside_sentence > 0) {
+                    // Estimate how many times a nonterminal was is in the current sentence
+                    for (Symbol nt : grammar.get_nonterminals()) {
+                        symbol_prob[nt] += estimate_symbol_expectation(nt, len, inside_sentence, iocalc);
                     }
+                    
+                    // Estimate how many times a rule is used.
+                    for (ProbabilisticContextFreeGrammar::iterator rule = grammar.begin(); rule != grammar.end(); ++rule) {
+                        
+                        if (rule->arity() == 2) { // Normal rules -> (11.26), p. 400                        
+                            rule_prob[*rule] += estimate_rule_expectation((*rule), len, inside_sentence, iocalc);
 
+                        } else { // Preterminal rules -> (11.27), p. 400
+                            rule_prob[*rule] += estimate_terminal_rule_expectation((*rule), len, cit->first, inside_sentence, iocalc) ;
+                        }
+                    }
+                } else {
+                    VLOG(4) << "EMTrainer: Skipping sentence because of 0-probability.";
                 }
             }
         }
@@ -145,6 +150,7 @@ private:
                     rmsq_sum += std::pow(rule->get_prob() - new_prob, 2);
                     ++rmsq_n;
                 } else {
+                    ++rmsq_n;
                     new_prob = 0;
                 }
                 VLOG(9) << "EMTrainer: Updating probability for rule '" << *rule << "'. New: " << new_prob;
@@ -165,6 +171,10 @@ private:
     /// This function is an implementation of fig. (11.24) on p. 399 in Manning&Schuetze.
     /// It calculates the estimate for how many times a NT is used in the derivation of the current sentence.
     Probability estimate_symbol_expectation(const Symbol& symbol, unsigned len, Probability pi, InsideOutsideCalculator& iocalc) {
+        if (pi == 0) return 0; //FIX: if pi is zero, NaN will always be returned.
+        // This is also only the case, if the sentece has an inside value of 0,
+        // meaning that it could not be parsed. Therefore, a 0 should be returned here
+
         // Iterate over all possible ranges in the sentence
         Probability score = 0;
         for (unsigned p = 0; p < len; ++p) {
@@ -183,7 +193,14 @@ private:
     /// Like estimate_symbol_expectationm, but for rules. See fig. (11.25) on p. 400 in Manning&Schuetze.
     /// Again, we do not divide the result by the inside probability of the whole sentence.
     Probability estimate_rule_expectation(const PCFGRule& rule, unsigned len, Probability pi, InsideOutsideCalculator& iocalc) {
+        // std::cerr << "Calling estimate_rule_expectation with " << rule << " len=" << len << " pi=" << pi << "\n";
+
         assert(rule.arity() == 2);
+
+        if (pi == 0) return 0; //FIX: if pi is zero, NaN will always be returned.
+        // This is also only the case, if the sentece has an inside value of 0,
+        // meaning that it could not be parsed. Therefore, a 0 should be returned here.
+
         Probability score = 0;
         
         for (unsigned p = 0; p < len-1; ++p) {
@@ -210,6 +227,10 @@ private:
     /// as the denumerator has been calculated in advance.
     Probability estimate_terminal_rule_expectation(const PCFGRule& rule, unsigned len,  const SymbolVector& sentence, Probability pi, InsideOutsideCalculator& iocalc) {
         assert(rule.arity() == 1);
+
+        if (pi == 0) return 0; //FIX: if pi is zero, NaN will always be returned.
+        // This is also only the case, if the sentece has an inside value of 0,
+        // meaning that it could not be parsed. Therefore, a 0 should be returned here.
         
         Probability score = 0;
         

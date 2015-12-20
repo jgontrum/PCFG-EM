@@ -39,7 +39,7 @@ private:
     typedef std::unordered_map<Symbol, Probability>            SymbolToProbabilityMap;
 
 
-public: 
+public:
     // Rule iterator
     typedef RuleVector::const_iterator                  const_iterator;
     typedef RuleVector::iterator                        iterator;
@@ -50,7 +50,7 @@ public:
 private:
     typedef boost::unordered_map<Symbol, LHSRangeMutable> RuleIndex;
 
-public: // Functions  
+public: // Functions
 
     /// Constructs this grammar by reading a grammar from a stream.
     /// The given grammar must contain one PCFG per line (S --> NP VP [1.0]),
@@ -66,7 +66,7 @@ public: // Functions
     const Symbol& get_start_symbol() const {
         return start_symbol;
     }
-    
+
     /// Get the Signature, that is used in this grammar. Other classes are allowed to
     /// add new symbols.
     const ExtSignature& get_signature() const {
@@ -77,7 +77,7 @@ public: // Functions
     ExtSignature& get_signature() {
         return signature;
     }
-    
+
     /// Return a set of all nonterminals
     const SymbolSet& get_nonterminals() const {
         return nonterminal_symbols;
@@ -98,7 +98,7 @@ public: // Functions
         RuleIndex::const_iterator f_lhs = rule_index.find(lhs);
         return (f_lhs != rule_index.end()) ? f_lhs->second : LHSRange(end(), end());
     }
-    
+
     /// Returns a range of rules (that can be changed) for a given lhs symbol
     LHSRangeMutable rules_for(const Symbol& lhs)  {
         RuleIndex::iterator f_lhs = rule_index.find(lhs);
@@ -125,7 +125,7 @@ public: // Functions
         return cit != second_symbol_rules.end() ? &(cit->second) : nullptr;
     }
 
-    
+
     iterator begin() {
         return productions.begin();
     }
@@ -156,7 +156,7 @@ public: // Functions
                 if (!is_nonterminal(rule[0]) || !is_nonterminal(rule[1]))
                     return false;
             } else return false;
-        } 
+        }
         return true;
     }
 
@@ -174,9 +174,9 @@ public: // Functions
         }
         return true;
     }
-    
 
-    
+
+
     /*
      * Removes all rules, that have probability=0
      */
@@ -191,13 +191,13 @@ public: // Functions
 
 
         // now find the range of rules with prob zero
-        iterator begin_of_zeros;
-        iterator end_of_zeros;
+        iterator begin_of_zeros = end();
+        iterator end_of_zeros = end();
         bool in_range = false;
 
         for (iterator rule = begin(); rule != end(); ++rule) {
-            //            std::cout << *rule << "\n";
             if (rule->get_prob() == 0) {
+                // std::cerr << "Removing 0-rule: " << *rule << "\n";
                 if (!in_range) {
                     in_range = true;
                     begin_of_zeros = rule;
@@ -210,8 +210,12 @@ public: // Functions
             }
         }
 
+        // std::cerr << "Productions before clean: " << productions.size() << "\n";
+
         // finally, remove all zero rules!
         productions.erase(begin_of_zeros, end_of_zeros);
+
+        // std::cerr << "Productions after clean: " << productions.size() << "\n";
 
         // sort in the right order again
         std::sort(begin(), end());
@@ -239,29 +243,29 @@ public: // Functions
 
     }
 
-    
+
     /*
      * Checks, if this grammar is a valid PCFG, so that the probabilities of all rules
      * that share the same lhs-symbol sum up to one.
-     * Is that not the case, the rules will receive the probability 
+     * Is that not the case, the rules will receive the probability
      * P(rule) / sum(P(rules)) [for all rules with the same lhs symbol].
      */
     void normalize_probabilities() {
         // Iterate over all rules and sum up the probability for all rules for a lhs symbol.
         // Also count, how many rules belong to a lhs symbol.
-        
+
         // Iterate over all nonterminals...
         for (const Symbol& nt : get_nonterminals()) {
             Probability current_probability = 0.0;
-            unsigned counter = 0;            
+            unsigned counter = 0;
             // ... and their rules.
             LHSRangeMutable rules_for_nt = rules_for(nt);
-            for (iterator rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) { 
+            for (iterator rule = rules_for_nt.first; rule != rules_for_nt.second; ++rule) {
                 ++counter;
                 current_probability += rule->get_prob();
             }
-                        
-            // If the summed up probability is not exactly 1, normalize the probability for all 
+
+            // If the summed up probability is not exactly 1, normalize the probability for all
             // rules for this lhs symbol. We assign them the probability p / current_probability.
             if ((int)(current_probability*1000000+0.5)/1000000.0 != 1) { // ceil
                 LOG(WARNING) << "PCFG: Probabilities for the symbol '" << get_signature().resolve_id(nt) << "' sum up to '" << current_probability << "' and are therefore illegal. Belonging rules will be normalized.";;
@@ -271,14 +275,14 @@ public: // Functions
             }
         }
     }
-    
+
     /// Stream output operator
     friend std::ostream& operator<<(std::ostream& o, const ProbabilisticContextFreeGrammar& g) {
         g.print(o);
         return o;
     }
 
-private: 
+private:
     /// Read in the grammar from a stream.
     bool read_in(std::istream& grm_in) {
         std::string line;
@@ -289,14 +293,14 @@ private:
             std::getline(grm_in, line);
             if (!line.empty() && line[0] != '#') {
                 /// create a rule
-                if (first_rule) { // this is the first line of the grammar 
+                if (first_rule) { // this is the first line of the grammar
                     first_rule = false;
                     VLOG(5) << "PCFG: Setting '" << line << "' as startsymbol.";
                     set_start_symbol(signature.add_symbol(line));
                     continue;
                 } else {
                     PCFGRule r(line, signature);
-                    
+
                     if (r) {
                         add_rule(r);
                         if (first_rule) {
@@ -312,15 +316,15 @@ private:
             }
             ++line_no;
         }
-        
+
         // Sort the rules using the '<'-operator of PCFGRule
         std::sort(productions.begin(), productions.end());
-        // build the index 
+        // build the index
         build_rule_index();
         return true;
     }
 
-    
+
     // Add a rule to the rule-vector
     void add_rule(PCFGRule& r) {
         // save it in the rule vector
@@ -336,10 +340,10 @@ private:
             LOG(WARNING) << "PCFG: The start symbol could not be set, because it is illegal. "
                     "It must be contained in the signature of the grammar.";
         }
-        
+
     }
 
- 
+
     void build_rule_index() {
         if (!productions.empty()) {
             Symbol current_lhs = begin()->get_lhs();
@@ -349,8 +353,8 @@ private:
                 nonterminal_symbols.insert(r->get_lhs());
                 vocabulary.insert(r->get_lhs());
                 vocabulary.insert(r->get_rhs().begin(), r->get_rhs().end());
-                
-                
+
+
                 if (r->get_lhs() != current_lhs) {
 
                     rule_index[current_lhs] = LHSRangeMutable(left, r);
@@ -362,13 +366,13 @@ private:
             }
 
             rule_index[current_lhs] = LHSRangeMutable(left, end());
-            
-            
+
+
 
         }
     }
-    
-    
+
+
     void build_rule_rhs_index() {
         // iterate over all non terminals...
         for (const Symbol& nt : get_nonterminals()) {
@@ -383,7 +387,7 @@ private:
             }
         }
     }
-   
+
     /// Print the grammar to a given stream
     void print(std::ostream& o) const {
         // startsymbol
@@ -419,6 +423,6 @@ private:
 
     SymbolToRuleVectorMap first_symbol_rules; ///< Maps a symbol to all rules, where it appeares as the first symbol on the rhs.
     SymbolToRuleVectorMap second_symbol_rules; ///< Maps a symbol to all rules, where it appeares as the second symbol on the rhs.
-}; 
+};
 
 #endif

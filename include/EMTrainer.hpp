@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   EMTrainer.hpp
  * Author: Johannes Gontrum
  *
@@ -40,43 +40,48 @@ private:
     typedef std::unordered_map<Symbol, Probability>         SymbolToProbMap;
     typedef std::unordered_map<PCFGRule, Probability, PCFGRule::Hasher>       RuleToProbMap;
 
-    
+
 public:
-    EMTrainer(ProbabilisticContextFreeGrammar& pcfg, std::istream& corpus) : 
+    EMTrainer(ProbabilisticContextFreeGrammar& pcfg, std::istream& corpus) :
     grammar(pcfg), signature(pcfg.get_signature()) {
         no_of_sentences = 0;
         read_in(corpus);
     }
-    
+
     /// Perfom the EM training exactly x times.
     void train(unsigned no_of_loops) {
         bool cleaned = false;
         double last_changes = 0;
-        
+
         for (unsigned i = 0; i < no_of_loops; ++i) {
+            // std::cerr << "Before Train\n" << grammar << "\n";
+
             last_changes = train();
-            
+            // std::cerr << "After Train\n" << grammar << "\n";
+
             // clean the grammar only after the first iteration.
             if (!cleaned) {
                 grammar.clean_grammar();
                 cleaned = true;
             }
+            // std::cerr << "After Clean\n" << grammar << "\n";
+
         }
 
         VLOG(1) << "EMTrainer: Completed after " << no_of_loops << " iterations with a RMSE = " << last_changes << ".";
 
     }
-    
+
     /// Perfom the EM training, until the changes are below the given threshold
     void train(double threshold) {
         double last_changes = std::numeric_limits<double>::max();
         bool cleaned = false;
         unsigned iterations = 0;
-        
+
         while (last_changes > threshold) {
             ++iterations;
             last_changes = train();
-            
+
             // clean the grammar only after the first iteration.
             if (!cleaned) {
                 grammar.clean_grammar();
@@ -86,14 +91,14 @@ public:
 
         VLOG(1) << "EMTrainer: Completed " << iterations << " iterations until RMSE was " << last_changes << " (<= " << threshold << ").";
     }
-    
-    
+
+
 private:
     double train() {
         SymbolToProbMap symbol_prob;
         RuleToProbMap rule_prob;
         bool training_performed = false;
-        
+
         double rmsq_sum = 0;
         unsigned rmsq_n = 0;
 
@@ -107,23 +112,23 @@ private:
 
                 unsigned len = (cit->first).size();
                 VLOG(3) << "EMTrainer: Current sentence: '" << symbol_vector_to_string(cit->first) << "'";
-                
+
                 // Calculate the inside probabiliy for the whole sentence first.
-                // in M&S this varible is called "Pi" and defined as 
+                // in M&S this varible is called "Pi" and defined as
                 // P(w_1m | G) = P(N^1 =>* w_1m | G) = Beta_1(1,m)
                 Probability inside_sentence = iocalc.calculate_inside(grammar.get_start_symbol(), 0, len-1);
                 VLOG(4) << "EMTrainer: Inside Probability for the whole sentence is " << inside_sentence;
-                
+
                 if (inside_sentence > 0) {
                     // Estimate how many times a nonterminal was is in the current sentence
                     for (Symbol nt : grammar.get_nonterminals()) {
                         symbol_prob[nt] += estimate_symbol_expectation(nt, len, inside_sentence, iocalc);
                     }
-                    
+
                     // Estimate how many times a rule is used.
                     for (ProbabilisticContextFreeGrammar::iterator rule = grammar.begin(); rule != grammar.end(); ++rule) {
-                        
-                        if (rule->arity() == 2) { // Normal rules -> (11.26), p. 400                        
+
+                        if (rule->arity() == 2) { // Normal rules -> (11.26), p. 400
                             rule_prob[*rule] += estimate_rule_expectation((*rule), len, inside_sentence, iocalc);
 
                         } else { // Preterminal rules -> (11.27), p. 400
@@ -161,8 +166,8 @@ private:
         } else {
             LOG(WARNING) << "EMTrainer: No estimation or maximization step performed. Please check, if the sentences in the training data can be parsed with the given grammar.";
         }
-        
-        
+
+
         VLOG(2) << "EMTrainer: Root mean square error compared to the last iteration: " << std::sqrt(rmsq_sum/rmsq_n);
         return std::sqrt(rmsq_sum/rmsq_n);
 
@@ -181,7 +186,7 @@ private:
             for (unsigned q = p; q < len; ++q) {
                 Probability current_outside = iocalc.calculate_outside(symbol, p, q);
                 Probability current_inside = iocalc.calculate_inside(symbol, p, q);
-                
+
                 Probability current_result = (current_outside * current_inside) / pi;
                 score += current_result;
             }
@@ -189,7 +194,7 @@ private:
         VLOG(6) << "EMTrainer: Estimation for the symbol '" << signature.resolve_id(symbol) << "' is "<<score;
         return score;
     }
-    
+
     /// Like estimate_symbol_expectationm, but for rules. See fig. (11.25) on p. 400 in Manning&Schuetze.
     /// Again, we do not divide the result by the inside probability of the whole sentence.
     Probability estimate_rule_expectation(const PCFGRule& rule, unsigned len, Probability pi, InsideOutsideCalculator& iocalc) {
@@ -202,7 +207,7 @@ private:
         // meaning that it could not be parsed. Therefore, a 0 should be returned here.
 
         Probability score = 0;
-        
+
         for (unsigned p = 0; p < len-1; ++p) {
             for (unsigned q = p+1; q < len; ++q) {
                 Probability inner_score = 0;
@@ -210,9 +215,9 @@ private:
                     Probability outside_lhs = iocalc.calculate_outside(rule.get_lhs(), p, q);
                     Probability inside_rhs1 = iocalc.calculate_inside(rule[0], p, d);
                     Probability inside_rhs2 = iocalc.calculate_inside(rule[1], d+1, q);
-                    
+
                     Probability current_score = rule.get_prob() * outside_lhs * inside_rhs1 * inside_rhs2;
-                    
+
                     inner_score += current_score;
                 }
                 score += inner_score / pi;
@@ -221,8 +226,8 @@ private:
         VLOG(6) << "EMTrainer: Estimation for the rule '" << rule << "': " << score;
         return score;
     }
-    
-    /// Like estimate_symbol_expectationm but for terminal rules. 
+
+    /// Like estimate_symbol_expectationm but for terminal rules.
     /// See Manning&Schuetze: p.400, (11.27). This function implements the numerator of the fraction,
     /// as the denumerator has been calculated in advance.
     Probability estimate_terminal_rule_expectation(const PCFGRule& rule, unsigned len,  const SymbolVector& sentence, Probability pi, InsideOutsideCalculator& iocalc) {
@@ -231,25 +236,25 @@ private:
         if (pi == 0) return 0; //FIX: if pi is zero, NaN will always be returned.
         // This is also only the case, if the sentece has an inside value of 0,
         // meaning that it could not be parsed. Therefore, a 0 should be returned here.
-        
+
         Probability score = 0;
-        
+
         for (unsigned h = 0; h < len; ++h) {
             // P(w_h = w^k) - check, if the terminal in the sentence at position h and the the terminal on the rhs are the same.
             if (rule.get_rhs()[0] == sentence[h]) {
-                
+
                 Probability outside = iocalc.calculate_outside(rule.get_lhs(), h, h);
                 Probability inside = iocalc.calculate_inside(rule.get_lhs(), h, h);
-                                
+
                 score += (outside * inside) / pi;
-                
+
             } // else: add 0 to the score.
         }
 
         VLOG(6) << "EMTrainer: Estimation for the rule '" << rule << "': " << score;
         return score;
     }
-    
+
     void read_in(std::istream& corpus) {
         std::string line;
         unsigned line_no = 1;
@@ -262,7 +267,7 @@ private:
                 Tokenizer tokens(line, CharSeparator("\t "));
                 SymbolVector tokens_id;;
                 bool valid = true;
-                
+
                 for (ExternalSymbol word : tokens) {
                     Symbol word_as_id = signature.resolve_symbol(word);
                     if (word_as_id < 0) { // If a terminal symbol was not found, mark this sentence as invalid.
@@ -271,25 +276,25 @@ private:
                     }
                     tokens_id.push_back(word_as_id);
                 }
-                
+
                 ++no_of_sentences;
                 sentences.push_back(SentenceTuple(tokens_id, valid));
             }
             ++line_no;
         }
     }
-    
+
     /// Nice way to print a symbol vector (sentences)
     std::string symbol_vector_to_string(const SymbolVector& vector) {
         std::stringstream sstream;
-        
+
         for (Symbol sym : vector) {
             sstream << signature.resolve_id(sym) << " ";
         }
-        
+
         return sstream.str();
     }
-    
+
 private:
     ProbabilisticContextFreeGrammar& grammar; ///< the grammar (obvious)
     Signature<ExternalSymbol>& signature; ///< the signature
@@ -298,4 +303,3 @@ private:
 };
 
 #endif	/* EMTRAINER_HPP */
-

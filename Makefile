@@ -1,6 +1,6 @@
 
 # Values for Linux.
-# For OS X, please remove the -lboost_program_options option and specify the path 
+# For OS X, please remove the -lboost_program_options option and specify the path
 # to the boost library yourself.
 CPPCOMPILER         = clang++
 COMPILER_FLAGS      = -O2 -std=c++11 -lboost_program_options 
@@ -17,9 +17,9 @@ DOC_PATH            = doc/
 all : build documentation
 
 # - Creates the executable
-build : bin/ bin/pcfgem  
+build : bin/ bin/pcfgem
 
-bin/ : 
+bin/ :
 	mkdir bin/
 
 bin/pcfgem : $(SRC_PATH)main.cpp $(HEADERFILES)
@@ -35,7 +35,7 @@ $(HEADER_TRAINER) : $(INCLUDE_PATH)EMTrainer.hpp
 $(HEADER_INSIDEOUTSIDE) : $(INCLUDE_PATH)InsideOutsideCache.hpp $(INCLUDE_PATH)InsideOutsideCalculator.hpp
 
 # - Headerfiles related to the grammar representation
-$(HEADER_GRAMMAR) : $(INCLUDE_PATH)ProbabilisticContextFreeGrammar.hpp $(INCLUDE_PATH)PCFGRule.hpp $(INCLUDE_PATH)Signature.hpp 
+$(HEADER_GRAMMAR) : $(INCLUDE_PATH)ProbabilisticContextFreeGrammar.hpp $(INCLUDE_PATH)PCFGRule.hpp $(INCLUDE_PATH)Signature.hpp
 
 # - logger
 $(EASYLOGGING) :  $(INCLUDE_PATH)easylogging++.h
